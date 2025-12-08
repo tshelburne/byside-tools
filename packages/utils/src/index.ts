@@ -10,6 +10,7 @@ export {
   zip,
   difference,
   intersect,
+  replaceAt,
 } from './array.js'
 
 // Object utilities
@@ -21,10 +22,13 @@ export {
   removeNullish,
   deepMerge,
   pluck,
+  updateAt,
   keys,
   values,
   entries,
   keyBy,
+  type Path,
+  type PathValue,
 } from './object.js'
 
 // String utilities
@@ -84,3 +88,6 @@ export {
   assertExists,
   exhaustive,
 } from './guards.js'
+
+// Type-level testing utilities
+export type { Expect, Equals, Extends, IsNever, IsAny, IsUnknown } from './test.js'

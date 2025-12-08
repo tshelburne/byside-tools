@@ -97,13 +97,53 @@ export function deepMerge<T extends object, U extends object>(target: T, source:
   return result
 }
 
-type PathValue<T, P extends string> = P extends `${infer K}.${infer Rest}`
+// --- Path Types ---
+
+type PathImpl<T, K extends keyof T> = K extends string
+  ? T[K] extends Record<string, unknown>
+    ? K | `${K}.${PathImpl<T[K], keyof T[K] & string>}`
+    : K
+  : never
+
+/**
+ * Recursively extracts all valid dot-notation paths for an object type.
+ * Supports nested objects and arrays.
+ *
+ * @example
+ * type User = { name: string; address: { city: string } }
+ * type UserPaths = Path<User> // 'name' | 'address' | 'address.city'
+ */
+export type Path<T> =
+  T extends Array<infer U>
+    ? `${number}` | `${number}.${Path<U>}`
+    : T extends Record<string, unknown>
+      ? PathImpl<T, keyof T & string>
+      : never
+
+/**
+ * Extracts the type at a given path within an object type.
+ * Supports nested objects and array indices.
+ *
+ * @example
+ * type User = { name: string; tags: string[] }
+ * type Name = PathValue<User, 'name'> // string
+ * type Tag = PathValue<string[], '0'> // string
+ */
+export type PathValue<T, P extends string> = P extends `${infer K}.${infer Rest}`
   ? K extends keyof T
     ? PathValue<T[K], Rest>
-    : undefined
+    : K extends `${number}`
+      ? T extends Array<infer U>
+        ? PathValue<U, Rest>
+        : never
+      : never
   : P extends keyof T
     ? T[P]
-    : undefined
+    : P extends `${number}`
+      ? T extends Array<infer U>
+        ? U
+        : never
+      : never
 
 /**
  * Get a nested value from an object by dot-separated path
@@ -120,6 +160,44 @@ export function pluck<T extends object, P extends string>(obj: T, path: P): Path
   }
 
   return current as PathValue<T, P>
+}
+
+/**
+ * Immutably update a nested value in an object by dot-separated path.
+ * Handles both object properties and array indices.
+ *
+ * @example
+ * const user = { name: 'John', address: { city: 'NYC' } }
+ * updateAt(user, 'address.city', 'LA') // { name: 'John', address: { city: 'LA' } }
+ *
+ * const items = ['a', 'b', 'c']
+ * updateAt(items, '1', 'x') // ['a', 'x', 'c']
+ */
+export function updateAt<T, P extends string>(obj: T, path: P, value: PathValue<T, P>): T {
+  const keys = path.split('.')
+  return updateAtKeys(obj, keys, value) as T
+}
+
+function updateAtKeys(obj: unknown, keys: string[], value: unknown): unknown {
+  if (keys.length === 0) return value
+
+  const [head, ...rest] = keys as [string, ...string[]]
+
+  if (Array.isArray(obj)) {
+    const index = Number(head)
+    const result = [...obj]
+    result[index] = updateAtKeys(obj[index], rest, value)
+    return result
+  }
+
+  if (obj != null && typeof obj === 'object') {
+    return {
+      ...obj,
+      [head]: updateAtKeys((obj as Record<string, unknown>)[head], rest, value),
+    }
+  }
+
+  return obj
 }
 
 /**

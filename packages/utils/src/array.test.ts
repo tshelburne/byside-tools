@@ -11,6 +11,7 @@ import {
   zip,
   difference,
   intersect,
+  replaceAt,
 } from './array.js'
 
 describe('compact', () => {
@@ -211,5 +212,33 @@ describe('intersect', () => {
 
   it('handles complete overlap', () => {
     assert.deepStrictEqual(intersect([1, 2], [1, 2]), [1, 2])
+  })
+})
+
+describe('replaceAt', () => {
+  it('replaces item at given index', () => {
+    assert.deepStrictEqual(replaceAt(['a', 'b', 'c'], 1, 'x'), ['a', 'x', 'c'])
+  })
+
+  it('replaces first item', () => {
+    assert.deepStrictEqual(replaceAt([1, 2, 3], 0, 10), [10, 2, 3])
+  })
+
+  it('replaces last item', () => {
+    assert.deepStrictEqual(replaceAt([1, 2, 3], 2, 30), [1, 2, 30])
+  })
+
+  it('returns a new array (immutable)', () => {
+    const original = [1, 2, 3]
+    const result = replaceAt(original, 1, 20)
+    assert.deepStrictEqual(original, [1, 2, 3])
+    assert.deepStrictEqual(result, [1, 20, 3])
+    assert.notStrictEqual(original, result)
+  })
+
+  it('works with readonly arrays', () => {
+    const arr: readonly number[] = [1, 2, 3]
+    const result = replaceAt(arr, 0, 10)
+    assert.deepStrictEqual(result, [10, 2, 3])
   })
 })

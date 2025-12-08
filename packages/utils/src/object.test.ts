@@ -8,6 +8,7 @@ import {
   removeNullish,
   deepMerge,
   pluck,
+  updateAt,
   keys,
   values,
   entries,
@@ -198,3 +199,52 @@ describe('keyBy', () => {
     )
   })
 })
+
+describe('updateAt', () => {
+  it('updates top-level property', () => {
+    const obj = { a: 1, b: 2 }
+    assert.deepStrictEqual(updateAt(obj, 'a', 10), { a: 10, b: 2 })
+  })
+
+  it('updates nested property', () => {
+    const obj = { user: { name: 'John', age: 30 } }
+    assert.deepStrictEqual(updateAt(obj, 'user.name', 'Jane'), {
+      user: { name: 'Jane', age: 30 },
+    })
+  })
+
+  it('updates deeply nested property', () => {
+    const obj = { a: { b: { c: { d: 1 } } } }
+    assert.deepStrictEqual(updateAt(obj, 'a.b.c.d', 99), {
+      a: { b: { c: { d: 99 } } },
+    })
+  })
+
+  it('updates array element by index', () => {
+    const arr = ['a', 'b', 'c']
+    assert.deepStrictEqual(updateAt(arr, '1', 'x'), ['a', 'x', 'c'])
+  })
+
+  it('updates nested array element', () => {
+    const obj = { items: ['a', 'b', 'c'] }
+    assert.deepStrictEqual(updateAt(obj, 'items.1', 'x'), { items: ['a', 'x', 'c'] })
+  })
+
+  it('updates object within array', () => {
+    const obj = { users: [{ name: 'John' }, { name: 'Jane' }] }
+    assert.deepStrictEqual(updateAt(obj, 'users.0.name', 'Jack'), {
+      users: [{ name: 'Jack' }, { name: 'Jane' }],
+    })
+  })
+
+  it('returns new object (immutable)', () => {
+    const original = { a: { b: 1 } }
+    const result = updateAt(original, 'a.b', 2)
+    assert.deepStrictEqual(original, { a: { b: 1 } })
+    assert.deepStrictEqual(result, { a: { b: 2 } })
+    assert.notStrictEqual(original, result)
+    assert.notStrictEqual(original.a, result.a)
+  })
+})
+
+// Type-level tests are in object.types.ts and run at compile time via `pnpm typecheck`

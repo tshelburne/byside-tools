@@ -99,3 +99,13 @@ export function intersect<T>(a: readonly T[], b: readonly T[]): T[] {
   const setB = new Set(b)
   return a.filter((item) => setB.has(item))
 }
+
+/**
+ * Replace an item at a given index, returning a new array.
+ * Useful for immutable state updates.
+ */
+export function replaceAt<T>(arr: readonly T[], index: number, value: T): T[] {
+  const result = [...arr]
+  result[index] = value
+  return result
+}
