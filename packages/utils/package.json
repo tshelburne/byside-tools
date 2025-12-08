@@ -1,0 +1,55 @@
+{
+  "name": "@byside/utils",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Common utility functions for arrays, strings, promises, and browser operations",
+  "license": "MIT",
+  "author": "Byside",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/byside/tools.git",
+    "directory": "packages/utils"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./browser": {
+      "types": "./dist/browser.d.ts",
+      "import": "./dist/browser.js"
+    },
+    "./promise": {
+      "types": "./dist/promise.d.ts",
+      "import": "./dist/promise.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "node --import tsx --test 'src/**/*.test.ts'",
+    "lint": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@types/jsdom": "^21.1.7",
+    "jsdom": "^25.0.1",
+    "tsx": "^4.19.2"
+  },
+  "keywords": [
+    "utils",
+    "utilities",
+    "array",
+    "string",
+    "promise",
+    "browser",
+    "typescript"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

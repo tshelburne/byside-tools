@@ -1,0 +1,47 @@
+{
+  "name": "@byside/zod-to-gql",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Convert Zod schemas to GraphQL SDL type definitions",
+  "license": "MIT",
+  "author": "Byside",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/byside/tools.git",
+    "directory": "packages/zod-to-gql"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "node --import tsx --test 'src/**/*.test.ts'",
+    "lint": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "peerDependencies": {
+    "zod": "^3.0.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "zod": "^3.23.8"
+  },
+  "keywords": [
+    "zod",
+    "graphql",
+    "schema",
+    "sdl",
+    "typescript"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}
