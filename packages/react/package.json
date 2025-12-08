@@ -1,0 +1,59 @@
+{
+  "name": "@byside/react",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Reusable React hooks and utilities for form state, DOM manipulation, and storage",
+  "license": "MIT",
+  "author": "Byside",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/byside/tools.git",
+    "directory": "packages/react"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./*": {
+      "types": "./dist/*.d.ts",
+      "import": "./dist/*.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "node --import tsx --test 'src/**/*.test.ts' 'src/**/*.test.tsx'",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@byside/utils": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^18.3.0",
+    "react": "^18.3.0",
+    "tsx": "^4.19.2"
+  },
+  "keywords": [
+    "react",
+    "hooks",
+    "editable",
+    "form",
+    "state",
+    "storage",
+    "dom",
+    "typescript"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}
