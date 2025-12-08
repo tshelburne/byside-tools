@@ -58,7 +58,7 @@ zodToGql('Entity', schema, {
   scalars: {
     uuid: 'ID', // Map UUID to ID instead
     datetime: 'DateTime',
-  }
+  },
 })
 ```
 
@@ -88,19 +88,19 @@ zodToGql('Person', PersonSchema, { types })
 
 ## Type Mappings
 
-| Zod Type | GraphQL Type |
-|----------|--------------|
-| `z.string()` | `String` |
-| `z.string().uuid()` | `UUID` |
-| `z.string().datetime()` | `Datetime` |
-| `z.number()` | `Float` |
-| `z.number().int()` | `Int` |
-| `z.boolean()` | `Boolean` |
-| `z.array(T)` | `[T]` |
-| `z.object({})` | `JSON` (or named type) |
-| `z.enum([...])` | `String` (as field) or `enum` (as top-level) |
-| `.optional()` | removes `!` |
-| `.default()` | keeps `!` (always present in output) |
+| Zod Type                | GraphQL Type                                 |
+| ----------------------- | -------------------------------------------- |
+| `z.string()`            | `String`                                     |
+| `z.string().uuid()`     | `UUID`                                       |
+| `z.string().datetime()` | `Datetime`                                   |
+| `z.number()`            | `Float`                                      |
+| `z.number().int()`      | `Int`                                        |
+| `z.boolean()`           | `Boolean`                                    |
+| `z.array(T)`            | `[T]`                                        |
+| `z.object({})`          | `JSON` (or named type)                       |
+| `z.enum([...])`         | `String` (as field) or `enum` (as top-level) |
+| `.optional()`           | removes `!`                                  |
+| `.default()`            | keeps `!` (always present in output)         |
 
 ## License
 

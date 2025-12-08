@@ -18,11 +18,7 @@ describe('waitForElement', () => {
     const [element] = await waitForElement(doc, '#target')
 
     assert.ok(element, 'should return the element')
-    assert.strictEqual(
-      element.textContent,
-      'Hello',
-      'should be the correct element',
-    )
+    assert.strictEqual(element.textContent, 'Hello', 'should be the correct element')
   })
 
   test('waits for element to appear via appendChild', async () => {
@@ -43,11 +39,7 @@ describe('waitForElement', () => {
     const [element] = await waitPromise
 
     assert.ok(element, 'should resolve when element appears')
-    assert.strictEqual(
-      element.textContent,
-      'Appeared',
-      'should be the correct element',
-    )
+    assert.strictEqual(element.textContent, 'Appeared', 'should be the correct element')
   })
 
   test('waits for deeply nested element', async () => {

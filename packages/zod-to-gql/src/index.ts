@@ -41,9 +41,7 @@ export function zodToGql(
     }
     lines.push('}')
   } else {
-    throw new Error(
-      `Top-level schema must be ZodObject or ZodEnum, got ${schema.constructor.name}`,
-    )
+    throw new Error(`Top-level schema must be ZodObject or ZodEnum, got ${schema.constructor.name}`)
   }
 
   return lines.join('\n')
@@ -128,11 +126,7 @@ function resolveBaseType(
   }
 
   if (schema instanceof z.ZodArray) {
-    const itemType = zodTypeToGql(
-      schema.element as z.ZodTypeAny,
-      scalars,
-      types,
-    )
+    const itemType = zodTypeToGql(schema.element as z.ZodTypeAny, scalars, types)
     return `[${itemType}]`
   }
 
@@ -144,8 +138,7 @@ function resolveBaseType(
     const def = schema._def as { value?: unknown; values?: unknown }
     const value = def.value ?? def.values
     if (typeof value === 'string') return 'String'
-    if (typeof value === 'number')
-      return Number.isInteger(value) ? 'Int' : 'Float'
+    if (typeof value === 'number') return Number.isInteger(value) ? 'Int' : 'Float'
     if (typeof value === 'boolean') return 'Boolean'
   }
 

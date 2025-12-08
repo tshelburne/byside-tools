@@ -72,10 +72,7 @@ test('waitFor resolves when condition becomes truthy', async () => {
 })
 
 test('waitFor rejects on timeout', async () => {
-  await assert.rejects(
-    async () => waitFor(() => null, 100),
-    /waitFor timed out after 100ms/,
-  )
+  await assert.rejects(async () => waitFor(() => null, 100), /waitFor timed out after 100ms/)
 })
 
 test('waitFor polls at specified interval', async () => {
@@ -96,10 +93,7 @@ test('waitFor polls at specified interval', async () => {
   )
 
   // Should have polled approximately 3-4 times (0ms, 50ms, 100ms, then found at ~120ms)
-  assert.ok(
-    callCount >= 3 && callCount <= 5,
-    `Expected 3-5 calls, got ${callCount}`,
-  )
+  assert.ok(callCount >= 3 && callCount <= 5, `Expected 3-5 calls, got ${callCount}`)
 })
 
 test('waitFor returns typed result', async () => {

@@ -8,16 +8,30 @@
     "typecheck": "pnpm -r typecheck",
     "clean": "pnpm -r clean",
     "check": "pnpm typecheck && pnpm test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "changeset": "changeset",
     "version": "changeset version",
     "publish": "pnpm build && changeset publish"
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.10",
+    "prettier": "^3.5.3",
+    "pretty-quick": "^4.1.1",
+    "simple-git-hooks": "^2.13.0",
     "typescript": "^5.7.2"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "pnpm pretty-quick --staged"
   },
   "packageManager": "pnpm@9.14.4",
   "engines": {
     "node": ">=20"
+  },
+  "prettier": {
+    "singleQuote": true,
+    "semi": false,
+    "tabWidth": 2,
+    "printWidth": 100
   }
 }

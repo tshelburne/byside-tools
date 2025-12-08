@@ -12,9 +12,7 @@ import type {
 } from './@types/index.js'
 import { hashPrompt } from './hash.js'
 
-export async function generateText(
-  options: GenerateTextOptions,
-): Promise<LlmResult<string>> {
+export async function generateText(options: GenerateTextOptions): Promise<LlmResult<string>> {
   const startTime = Date.now()
   const promptHash = hashPrompt(options.system, options.prompt)
 
@@ -63,10 +61,7 @@ export async function generateObject<T extends z.ZodType>(
   return { content: result.object as z.infer<T>, usage }
 }
 
-function buildMessages(
-  prompt: string,
-  imageBase64?: string,
-): ModelMessage[] {
+function buildMessages(prompt: string, imageBase64?: string): ModelMessage[] {
   if (!imageBase64) {
     return [{ role: 'user', content: prompt }]
   }
