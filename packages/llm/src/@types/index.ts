@@ -21,6 +21,7 @@ export interface GenerateTextOptions {
   model: LanguageModel
   system: string
   prompt: string
+  imageBase64?: string
   temperature?: number
   maxTokens?: number
 }
@@ -30,6 +31,7 @@ export interface GenerateObjectOptions<T extends z.ZodType> {
   system: string
   prompt: string
   schema: T
+  imageBase64?: string
   temperature?: number
   maxTokens?: number
 }

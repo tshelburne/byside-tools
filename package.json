@@ -5,8 +5,9 @@
   "scripts": {
     "build": "pnpm -r build",
     "test": "pnpm -r test",
-    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
     "clean": "pnpm -r clean",
+    "check": "pnpm typecheck && pnpm test",
     "changeset": "changeset",
     "version": "changeset version",
     "publish": "pnpm build && changeset publish"

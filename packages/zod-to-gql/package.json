@@ -24,7 +24,7 @@
   "scripts": {
     "build": "tsc",
     "test": "node --import tsx --test 'src/**/*.test.ts'",
-    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist"
   },
   "peerDependencies": {
