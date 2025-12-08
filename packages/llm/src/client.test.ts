@@ -1,10 +1,25 @@
-import { describe, it, mock, beforeEach } from 'node:test'
+import { describe, it, mock, beforeEach, type Mock } from 'node:test'
 import assert from 'node:assert'
 import { z } from 'zod'
 import type { LanguageModel } from 'ai'
 
-const mockGenerateText = mock.fn()
-const mockGenerateObject = mock.fn()
+interface AiTextResult {
+  text: string
+  usage: { inputTokens?: number; outputTokens?: number }
+  response: { modelId?: string }
+}
+
+interface AiObjectResult {
+  object: unknown
+  usage: { inputTokens?: number; outputTokens?: number }
+  response: { modelId?: string }
+}
+
+type GenerateTextFn = (opts: Record<string, unknown>) => Promise<AiTextResult>
+type GenerateObjectFn = (opts: Record<string, unknown>) => Promise<AiObjectResult>
+
+const mockGenerateText: Mock<GenerateTextFn> = mock.fn()
+const mockGenerateObject: Mock<GenerateObjectFn> = mock.fn()
 
 mock.module('ai', {
   namedExports: {
@@ -14,6 +29,27 @@ mock.module('ai', {
 })
 
 const { generateText, generateObject } = await import('./client.js')
+
+interface MessageContent {
+  type: string
+  text?: string
+  image?: string
+}
+
+interface Message {
+  role: string
+  content: string | MessageContent[]
+}
+
+function getCallOptions(mockFn: Mock<GenerateTextFn> | Mock<GenerateObjectFn>) {
+  const call = mockFn.mock.calls[0]
+  if (!call) throw new Error('No call recorded')
+  return call.arguments[0]
+}
+
+function getMessages(opts: Record<string, unknown>): Message[] {
+  return opts.messages as Message[]
+}
 
 describe('generateText', () => {
   beforeEach(() => {
@@ -54,9 +90,8 @@ describe('generateText', () => {
       prompt: 'hello',
     })
 
-    const call = mockGenerateText.mock.calls[0]
-    const opts = call?.arguments[0] as Record<string, unknown>
-    const messages = opts.messages as Array<{ role: string; content: unknown }>
+    const opts = getCallOptions(mockGenerateText)
+    const messages = getMessages(opts)
 
     assert.strictEqual(messages.length, 1)
     assert.strictEqual(messages[0]?.role, 'user')
@@ -78,15 +113,14 @@ describe('generateText', () => {
       imageBase64,
     })
 
-    const call = mockGenerateText.mock.calls[0]
-    const opts = call?.arguments[0] as Record<string, unknown>
-    const messages = opts.messages as Array<{ role: string; content: unknown }>
+    const opts = getCallOptions(mockGenerateText)
+    const messages = getMessages(opts)
 
     assert.strictEqual(messages.length, 1)
     assert.strictEqual(messages[0]?.role, 'user')
     assert.ok(Array.isArray(messages[0]?.content))
 
-    const content = messages[0]?.content as Array<{ type: string; text?: string; image?: string }>
+    const content = messages[0]?.content as MessageContent[]
     assert.deepStrictEqual(content[0], { type: 'text', text: 'describe this' })
     assert.deepStrictEqual(content[1], { type: 'image', image: imageBase64 })
   })
@@ -168,9 +202,7 @@ describe('generateObject', () => {
       schema,
     })
 
-    const call = mockGenerateObject.mock.calls[0]
-    const opts = call?.arguments[0] as Record<string, unknown>
-
+    const opts = getCallOptions(mockGenerateObject)
     assert.strictEqual(opts.schema, schema)
   })
 
@@ -190,10 +222,9 @@ describe('generateObject', () => {
       imageBase64,
     })
 
-    const call = mockGenerateObject.mock.calls[0]
-    const opts = call?.arguments[0] as Record<string, unknown>
-    const messages = opts.messages as Array<{ role: string; content: unknown }>
-    const content = messages[0]?.content as Array<{ type: string; text?: string; image?: string }>
+    const opts = getCallOptions(mockGenerateObject)
+    const messages = getMessages(opts)
+    const content = messages[0]?.content as MessageContent[]
 
     assert.deepStrictEqual(content[1], { type: 'image', image: imageBase64 })
   })
