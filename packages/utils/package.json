@@ -17,13 +17,37 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./browser": {
-      "types": "./dist/browser.d.ts",
-      "import": "./dist/browser.js"
+    "./array": {
+      "types": "./dist/array.d.ts",
+      "import": "./dist/array.js"
+    },
+    "./object": {
+      "types": "./dist/object.d.ts",
+      "import": "./dist/object.js"
+    },
+    "./string": {
+      "types": "./dist/string.d.ts",
+      "import": "./dist/string.js"
     },
     "./promise": {
       "types": "./dist/promise.d.ts",
       "import": "./dist/promise.js"
+    },
+    "./browser": {
+      "types": "./dist/browser.d.ts",
+      "import": "./dist/browser.js"
+    },
+    "./result": {
+      "types": "./dist/result.d.ts",
+      "import": "./dist/result.js"
+    },
+    "./format": {
+      "types": "./dist/format.d.ts",
+      "import": "./dist/format.js"
+    },
+    "./guards": {
+      "types": "./dist/guards.d.ts",
+      "import": "./dist/guards.js"
     }
   },
   "files": [
