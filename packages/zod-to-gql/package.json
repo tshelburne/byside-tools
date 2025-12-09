@@ -22,8 +22,9 @@
     "dist"
   ],
   "scripts": {
+    "node": "node --import tsx",
     "build": "tsc -p tsconfig.build.json",
-    "test": "node --import tsx --test 'src/**/*.test.ts'",
+    "test": "pnpm node --test 'src/**/*.test.ts'",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist"
   },
