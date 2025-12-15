@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert'
 import { z } from 'zod'
-import { zodToGql, zodSchemasToGql } from './index.js'
+import { zodToGql } from './index.js'
 
 describe('zodToGql', () => {
   it('converts simple object schema', () => {
@@ -157,7 +157,7 @@ describe('zodToGql', () => {
   })
 })
 
-describe('zodSchemasToGql', () => {
+describe('zodToGql with record', () => {
   it('converts multiple schemas', () => {
     const schemas = {
       Age: z.object({
@@ -170,7 +170,7 @@ describe('zodSchemasToGql', () => {
       }),
     }
 
-    const result = zodSchemasToGql(schemas)
+    const result = zodToGql(schemas)
 
     assert.strictEqual(
       result,
@@ -204,7 +204,7 @@ type Role {
       quantity: z.number().int(),
     })
 
-    const result = zodSchemasToGql({
+    const result = zodToGql({
       DomainProduct: ProductSchema,
       DomainLocation: LocationSchema,
       DomainInventory: InventorySchema,
@@ -241,7 +241,7 @@ type DomainInventory {
       tags: z.array(TagSchema),
     })
 
-    const result = zodSchemasToGql({
+    const result = zodToGql({
       Tag: TagSchema,
       Article: ArticleSchema,
     })
@@ -269,7 +269,7 @@ type Article {
     })
 
     assert.throws(
-      () => zodSchemasToGql({ Main: MainSchema }, { strict: true }),
+      () => zodToGql({ Main: MainSchema }, { strict: true }),
       /Strict mode: Field "ref" on type "Main" references an unregistered object schema/,
     )
   })
@@ -284,7 +284,7 @@ type Article {
     })
 
     assert.throws(
-      () => zodSchemasToGql({ Main: MainSchema }, { strict: true }),
+      () => zodToGql({ Main: MainSchema }, { strict: true }),
       /Strict mode: Field "items" on type "Main" references an unregistered object schema/,
     )
   })
@@ -298,7 +298,7 @@ type Article {
       ref: UnregisteredSchema,
     })
 
-    const result = zodSchemasToGql({ Main: MainSchema })
+    const result = zodToGql({ Main: MainSchema })
 
     assert.strictEqual(
       result,
@@ -322,7 +322,7 @@ type Article {
       internal: InternalSchema,
     })
 
-    const result = zodSchemasToGql(
+    const result = zodToGql(
       {
         Internal: InternalSchema,
         Main: MainSchema,

@@ -1,15 +1,14 @@
 import { z } from 'zod'
 
+/** Base Zod schema type - compatible with both Zod 3 and Zod 4 */
+type ZodSchema = z.ZodTypeAny | z.core.$ZodType
+
 export type ZodToGqlOptions = {
   /** Custom scalar mappings (e.g., { 'uuid': 'UUID' }) */
   scalars?: Record<string, string>
   /** Named type mappings for nested objects (schema -> GraphQL type name) */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  types?: Map<any, string>
-}
-
-export type ZodSchemasToGqlOptions = ZodToGqlOptions & {
-  /** Throw if an object schema is encountered that isn't in the schemas record */
+  types?: Map<ZodSchema, string>
+  /** Throw if an object schema is encountered that isn't in the schemas record (only applies to record overload) */
   strict?: boolean
 }
 
@@ -21,22 +20,47 @@ const DEFAULT_SCALARS: Record<string, string> = {
 }
 
 /**
- * Convert a Zod schema to GraphQL SDL type definition.
+ * Convert a single Zod schema to GraphQL SDL type definition.
+ */
+export function zodToGql(name: string, schema: ZodSchema, options?: ZodToGqlOptions): string
+/**
+ * Convert multiple Zod schemas to GraphQL SDL.
+ * Automatically resolves cross-references between schemas in the record.
+ *
+ * @example
+ * ```ts
+ * zodToGql({
+ *   DomainProduct: ProductSchema,
+ *   DomainInventory: InventorySchema, // references ProductSchema
+ * })
+ * // => type DomainProduct { ... }
+ * //    type DomainInventory { product: DomainProduct! }
+ * ```
+ */
+export function zodToGql(schemas: Record<string, ZodSchema>, options?: ZodToGqlOptions): string
+export function zodToGql(
+  nameOrSchemas: string | Record<string, ZodSchema>,
+  schemaOrOptions?: ZodSchema | ZodToGqlOptions,
+  options?: ZodToGqlOptions,
+): string {
+  if (typeof nameOrSchemas === 'string') {
+    return zodSchemaToGql(nameOrSchemas, schemaOrOptions as ZodSchema, options)
+  }
+  return zodSchemasToGql(nameOrSchemas, schemaOrOptions as ZodToGqlOptions)
+}
+
+/**
+ * Convert a single Zod schema to GraphQL SDL type definition.
  * Compatible with both Zod 3 and Zod 4 schemas.
  */
-export function zodToGql(
-  name: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  schema: any,
-  options: ZodToGqlOptions = {},
-): string {
+function zodSchemaToGql(name: string, schema: ZodSchema, options: ZodToGqlOptions = {}): string {
   const scalars = { ...DEFAULT_SCALARS, ...options.scalars }
   const types = options.types
   const lines: string[] = []
 
   if (schema instanceof z.ZodObject) {
     lines.push(`type ${name} {`)
-    const shape = schema.shape as Record<string, z.ZodTypeAny>
+    const shape = schema.shape as Record<string, ZodSchema>
     for (const [key, fieldSchema] of Object.entries(shape)) {
       const gqlType = zodTypeToGql(fieldSchema, scalars, types)
       lines.push(`  ${key}: ${gqlType}`)
@@ -59,33 +83,18 @@ export function zodToGql(
  * Convert multiple Zod schemas to GraphQL SDL.
  * Automatically resolves cross-references between schemas in the record.
  * Compatible with both Zod 3 and Zod 4 schemas.
- *
- * @example
- * ```ts
- * const ProductSchema = z.object({ name: z.string() })
- * const InventorySchema = z.object({ product: ProductSchema })
- *
- * zodSchemasToGql({
- *   DomainProduct: ProductSchema,
- *   DomainInventory: InventorySchema,
- * })
- * // => type DomainProduct { name: String! }
- * //    type DomainInventory { product: DomainProduct! }
- * ```
  */
-export function zodSchemasToGql(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  schemas: Record<string, any>,
-  options: ZodSchemasToGqlOptions = {},
+function zodSchemasToGql(
+  schemas: Record<string, ZodSchema>,
+  options: ZodToGqlOptions = {},
 ): string {
   // Build types Map from schemas record, merging with any user-provided types
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const types = new Map<any, string>(options.types)
+  const types = new Map<ZodSchema, string>(options.types)
   for (const [name, schema] of Object.entries(schemas)) {
     types.set(schema, name)
   }
 
-  const mergedOptions: ZodToGqlOptions & { strict?: boolean } = {
+  const mergedOptions: ZodToGqlOptions = {
     ...options,
     types,
   }
@@ -95,7 +104,7 @@ export function zodSchemasToGql(
   }
 
   return Object.entries(schemas)
-    .map(([name, schema]) => zodToGql(name, schema, mergedOptions))
+    .map(([name, schema]) => zodSchemaToGql(name, schema, mergedOptions))
     .join('\n\n')
 }
 
@@ -104,14 +113,12 @@ export function zodSchemasToGql(
  * Throws if an unregistered object schema is found.
  */
 function validateAllReferences(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  schemas: Record<string, any>,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  types: Map<any, string>,
+  schemas: Record<string, ZodSchema>,
+  types: Map<ZodSchema, string>,
 ): void {
   for (const [typeName, schema] of Object.entries(schemas)) {
     if (schema instanceof z.ZodObject) {
-      const shape = schema.shape as Record<string, z.ZodTypeAny>
+      const shape = schema.shape as Record<string, ZodSchema>
       for (const [fieldName, fieldSchema] of Object.entries(shape)) {
         validateFieldSchema(fieldSchema, types, typeName, fieldName)
       }
@@ -120,10 +127,8 @@ function validateAllReferences(
 }
 
 function validateFieldSchema(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  schema: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  types: Map<any, string>,
+  schema: ZodSchema,
+  types: Map<ZodSchema, string>,
   parentType: string,
   fieldName: string,
 ): void {
@@ -144,11 +149,9 @@ function validateFieldSchema(
 }
 
 function zodTypeToGql(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  schema: any,
+  schema: ZodSchema,
   scalars: Record<string, string>,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  types?: Map<any, string>,
+  types?: Map<ZodSchema, string>,
 ): string {
   const unwrapped = unwrapSchema(schema)
   const isOptional = unwrapped.isOptional
@@ -158,10 +161,8 @@ function zodTypeToGql(
   return isOptional ? baseType : `${baseType}!`
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function unwrapSchema(schema: any): {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  schema: any
+function unwrapSchema(schema: ZodSchema): {
+  schema: ZodSchema
   isOptional: boolean
 } {
   if (schema instanceof z.ZodOptional || schema instanceof z.ZodNullable) {
@@ -176,11 +177,9 @@ function unwrapSchema(schema: any): {
 type ZodCheck = { kind?: string; format?: string; isInt?: boolean }
 
 function resolveBaseType(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  schema: any,
+  schema: ZodSchema,
   scalars: Record<string, string>,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  types?: Map<any, string>,
+  types?: Map<ZodSchema, string>,
 ): string {
   if (types?.has(schema)) {
     return types.get(schema)!
