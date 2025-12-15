@@ -72,11 +72,43 @@ function zodSchemaToGql(name: string, schema: ZodSchema, options: ZodToGqlOption
       lines.push(`  ${value.toUpperCase()}`)
     }
     lines.push('}')
+  } else if (schema instanceof z.ZodUnion) {
+    const unionMembers = resolveUnionMembers(schema as z.ZodUnion<never>, types)
+    lines.push(`union ${name} = ${unionMembers.join(' | ')}`)
   } else {
-    throw new Error(`Top-level schema must be ZodObject or ZodEnum, got ${schema.constructor.name}`)
+    throw new Error(
+      `Top-level schema must be ZodObject, ZodEnum, or ZodUnion, got ${schema.constructor.name}`,
+    )
   }
 
   return lines.join('\n')
+}
+
+/**
+ * Resolve union members to their GraphQL type names.
+ * All members must be registered object types.
+ */
+function resolveUnionMembers(schema: z.ZodUnion<never>, types?: Map<ZodSchema, string>): string[] {
+  const options = (schema as { options: readonly ZodSchema[] }).options
+  const members: string[] = []
+
+  for (const opt of options) {
+    if (!(opt instanceof z.ZodObject)) {
+      throw new Error(
+        `Union members must be object types when used as a top-level union declaration.`,
+      )
+    }
+    const typeName = types?.get(opt)
+    if (!typeName) {
+      throw new Error(
+        `Union member is not registered in the types map. ` +
+          `Register all union member schemas in the schemas record.`,
+      )
+    }
+    members.push(typeName)
+  }
+
+  return members
 }
 
 /**
@@ -233,18 +265,63 @@ function resolveBaseType(
 
   if (schema instanceof z.ZodUnion) {
     const options = schema.options as ZodSchema[]
+
+    // Check if union itself is registered
+    if (types?.has(schema)) {
+      return types.get(schema)!
+    }
+
+    // Check if all members are strings/enums/string literals → String
     const allStringish = options.every((opt) => {
       if (opt instanceof z.ZodString || opt instanceof z.ZodEnum) return true
       if (opt instanceof z.ZodLiteral && typeof opt.value === 'string') return true
       return false
     })
-    if (!allStringish) {
+    if (allStringish) {
+      return 'String'
+    }
+
+    // Check if all members are numbers → Int or Float
+    const allNumbers = options.every(
+      (opt) =>
+        opt instanceof z.ZodNumber ||
+        (opt instanceof z.ZodLiteral && typeof opt.value === 'number'),
+    )
+    if (allNumbers) {
+      const allInts = options.every((opt) => {
+        if (opt instanceof z.ZodLiteral) return Number.isInteger(opt.value)
+        if (opt instanceof z.ZodNumber) {
+          const def = opt._def as { checks?: Array<{ kind?: string }> }
+          return def.checks?.some((c) => c.kind === 'int') ?? false
+        }
+        return false
+      })
+      return allInts ? 'Int' : 'Float'
+    }
+
+    // Check if all members are booleans → Boolean
+    const allBooleans = options.every(
+      (opt) =>
+        opt instanceof z.ZodBoolean ||
+        (opt instanceof z.ZodLiteral && typeof opt.value === 'boolean'),
+    )
+    if (allBooleans) {
+      return 'Boolean'
+    }
+
+    // Check if all members are registered objects → error with helpful message
+    const allObjects = options.every((opt) => opt instanceof z.ZodObject)
+    if (allObjects) {
       throw new Error(
-        `Union types can only contain strings, string literals, or enums. ` +
-          `For object unions, register each type in the schemas record.`,
+        `Object union used as a field must be registered in the schemas record. ` +
+          `Add the union schema to the record with a name, e.g., { MyUnion: z.union([A, B]) }`,
       )
     }
-    return 'String'
+
+    throw new Error(
+      `Union contains mixed types that cannot be converted to GraphQL. ` +
+        `Unions must contain all strings, all numbers, all booleans, or all registered objects.`,
+    )
   }
 
   return 'String'

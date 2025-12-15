@@ -241,25 +241,70 @@ describe('zodToGql', () => {
     )
   })
 
-  it('throws for union of non-string types', () => {
+  it('handles union of number literals as Int', () => {
     const schema = z.object({
-      value: z.union([z.literal(1), z.literal(2)]),
+      value: z.union([z.literal(1), z.literal(2), z.literal(3)]),
     })
 
-    assert.throws(
-      () => zodToGql('BadUnion', schema),
-      /Union types can only contain strings, string literals, or enums/,
+    const result = zodToGql('NumberUnion', schema)
+
+    assert.strictEqual(
+      result,
+      `type NumberUnion {
+  value: Int!
+}`,
     )
   })
 
-  it('throws for union containing objects', () => {
+  it('handles union of floats as Float', () => {
+    const schema = z.object({
+      value: z.union([z.literal(1.5), z.literal(2.5)]),
+    })
+
+    const result = zodToGql('FloatUnion', schema)
+
+    assert.strictEqual(
+      result,
+      `type FloatUnion {
+  value: Float!
+}`,
+    )
+  })
+
+  it('handles union of booleans as Boolean', () => {
+    const schema = z.object({
+      value: z.union([z.literal(true), z.literal(false)]),
+    })
+
+    const result = zodToGql('BoolUnion', schema)
+
+    assert.strictEqual(
+      result,
+      `type BoolUnion {
+  value: Boolean!
+}`,
+    )
+  })
+
+  it('throws for unregistered object union field', () => {
     const A = z.object({ a: z.string() })
     const B = z.object({ b: z.string() })
     const schema = z.object({
       value: z.union([A, B]),
     })
 
-    assert.throws(() => zodToGql('ObjectUnion', schema), /Union types can only contain strings/)
+    assert.throws(
+      () => zodToGql('ObjectUnion', schema),
+      /Object union used as a field must be registered/,
+    )
+  })
+
+  it('throws for mixed type unions', () => {
+    const schema = z.object({
+      value: z.union([z.literal('a'), z.literal(1)]),
+    })
+
+    assert.throws(() => zodToGql('MixedUnion', schema), /Union contains mixed types/)
   })
 })
 
@@ -447,6 +492,79 @@ type Article {
 type Main {
   external: ExternalType!
   internal: Internal!
+}`,
+    )
+  })
+
+  it('generates GraphQL union for object unions', () => {
+    const DogSchema = z.object({
+      breed: z.string(),
+    })
+
+    const CatSchema = z.object({
+      meows: z.boolean(),
+    })
+
+    const PetUnion = z.union([DogSchema, CatSchema])
+
+    const result = zodToGql({
+      Dog: DogSchema,
+      Cat: CatSchema,
+      Pet: PetUnion,
+    })
+
+    assert.strictEqual(
+      result,
+      `type Dog {
+  breed: String!
+}
+
+type Cat {
+  meows: Boolean!
+}
+
+union Pet = Dog | Cat`,
+    )
+  })
+
+  it('resolves registered union as field type', () => {
+    const DogSchema = z.object({
+      breed: z.string(),
+    })
+
+    const CatSchema = z.object({
+      meows: z.boolean(),
+    })
+
+    const PetUnion = z.union([DogSchema, CatSchema])
+
+    const OwnerSchema = z.object({
+      name: z.string(),
+      pet: PetUnion,
+    })
+
+    const result = zodToGql({
+      Dog: DogSchema,
+      Cat: CatSchema,
+      Pet: PetUnion,
+      Owner: OwnerSchema,
+    })
+
+    assert.strictEqual(
+      result,
+      `type Dog {
+  breed: String!
+}
+
+type Cat {
+  meows: Boolean!
+}
+
+union Pet = Dog | Cat
+
+type Owner {
+  name: String!
+  pet: Pet!
 }`,
     )
   })
