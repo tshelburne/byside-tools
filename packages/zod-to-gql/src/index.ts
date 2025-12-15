@@ -4,7 +4,13 @@ export type ZodToGqlOptions = {
   /** Custom scalar mappings (e.g., { 'uuid': 'UUID' }) */
   scalars?: Record<string, string>
   /** Named type mappings for nested objects (schema -> GraphQL type name) */
-  types?: Map<z.ZodTypeAny, string>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  types?: Map<any, string>
+}
+
+export type ZodSchemasToGqlOptions = ZodToGqlOptions & {
+  /** Throw if an object schema is encountered that isn't in the schemas record */
+  strict?: boolean
 }
 
 const DEFAULT_SCALARS: Record<string, string> = {
@@ -15,11 +21,13 @@ const DEFAULT_SCALARS: Record<string, string> = {
 }
 
 /**
- * Convert a Zod schema to GraphQL SDL type definition
+ * Convert a Zod schema to GraphQL SDL type definition.
+ * Compatible with both Zod 3 and Zod 4 schemas.
  */
 export function zodToGql(
   name: string,
-  schema: z.ZodTypeAny,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  schema: any,
   options: ZodToGqlOptions = {},
 ): string {
   const scalars = { ...DEFAULT_SCALARS, ...options.scalars }
@@ -48,21 +56,99 @@ export function zodToGql(
 }
 
 /**
- * Convert multiple Zod schemas to GraphQL SDL
+ * Convert multiple Zod schemas to GraphQL SDL.
+ * Automatically resolves cross-references between schemas in the record.
+ * Compatible with both Zod 3 and Zod 4 schemas.
+ *
+ * @example
+ * ```ts
+ * const ProductSchema = z.object({ name: z.string() })
+ * const InventorySchema = z.object({ product: ProductSchema })
+ *
+ * zodSchemasToGql({
+ *   DomainProduct: ProductSchema,
+ *   DomainInventory: InventorySchema,
+ * })
+ * // => type DomainProduct { name: String! }
+ * //    type DomainInventory { product: DomainProduct! }
+ * ```
  */
 export function zodSchemasToGql(
-  schemas: Record<string, z.ZodTypeAny>,
-  options: ZodToGqlOptions = {},
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  schemas: Record<string, any>,
+  options: ZodSchemasToGqlOptions = {},
 ): string {
+  // Build types Map from schemas record, merging with any user-provided types
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const types = new Map<any, string>(options.types)
+  for (const [name, schema] of Object.entries(schemas)) {
+    types.set(schema, name)
+  }
+
+  const mergedOptions: ZodToGqlOptions & { strict?: boolean } = {
+    ...options,
+    types,
+  }
+
+  if (options.strict) {
+    validateAllReferences(schemas, types)
+  }
+
   return Object.entries(schemas)
-    .map(([name, schema]) => zodToGql(name, schema, options))
+    .map(([name, schema]) => zodToGql(name, schema, mergedOptions))
     .join('\n\n')
 }
 
+/**
+ * Validate that all object schema references are present in the types map.
+ * Throws if an unregistered object schema is found.
+ */
+function validateAllReferences(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  schemas: Record<string, any>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  types: Map<any, string>,
+): void {
+  for (const [typeName, schema] of Object.entries(schemas)) {
+    if (schema instanceof z.ZodObject) {
+      const shape = schema.shape as Record<string, z.ZodTypeAny>
+      for (const [fieldName, fieldSchema] of Object.entries(shape)) {
+        validateFieldSchema(fieldSchema, types, typeName, fieldName)
+      }
+    }
+  }
+}
+
+function validateFieldSchema(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  schema: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  types: Map<any, string>,
+  parentType: string,
+  fieldName: string,
+): void {
+  const unwrapped = unwrapSchema(schema)
+  const inner = unwrapped.schema
+
+  if (inner instanceof z.ZodArray) {
+    validateFieldSchema(inner.element, types, parentType, fieldName)
+    return
+  }
+
+  if (inner instanceof z.ZodObject && !types.has(inner)) {
+    throw new Error(
+      `Strict mode: Field "${fieldName}" on type "${parentType}" references an unregistered object schema. ` +
+        `Add it to the schemas record or disable strict mode.`,
+    )
+  }
+}
+
 function zodTypeToGql(
-  schema: z.ZodTypeAny,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  schema: any,
   scalars: Record<string, string>,
-  types?: Map<z.ZodTypeAny, string>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  types?: Map<any, string>,
 ): string {
   const unwrapped = unwrapSchema(schema)
   const isOptional = unwrapped.isOptional
@@ -72,15 +158,17 @@ function zodTypeToGql(
   return isOptional ? baseType : `${baseType}!`
 }
 
-function unwrapSchema(schema: z.ZodTypeAny): {
-  schema: z.ZodTypeAny
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function unwrapSchema(schema: any): {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  schema: any
   isOptional: boolean
 } {
   if (schema instanceof z.ZodOptional || schema instanceof z.ZodNullable) {
-    return { schema: schema.unwrap() as z.ZodTypeAny, isOptional: true }
+    return { schema: schema.unwrap(), isOptional: true }
   }
   if (schema instanceof z.ZodDefault) {
-    return { schema: schema.removeDefault() as z.ZodTypeAny, isOptional: false }
+    return { schema: schema.removeDefault(), isOptional: false }
   }
   return { schema, isOptional: false }
 }
@@ -88,9 +176,11 @@ function unwrapSchema(schema: z.ZodTypeAny): {
 type ZodCheck = { kind?: string; format?: string; isInt?: boolean }
 
 function resolveBaseType(
-  schema: z.ZodTypeAny,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  schema: any,
   scalars: Record<string, string>,
-  types?: Map<z.ZodTypeAny, string>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  types?: Map<any, string>,
 ): string {
   if (types?.has(schema)) {
     return types.get(schema)!
@@ -126,7 +216,7 @@ function resolveBaseType(
   }
 
   if (schema instanceof z.ZodArray) {
-    const itemType = zodTypeToGql(schema.element as z.ZodTypeAny, scalars, types)
+    const itemType = zodTypeToGql(schema.element, scalars, types)
     return `[${itemType}]`
   }
 

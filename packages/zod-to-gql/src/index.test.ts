@@ -185,6 +185,165 @@ type Role {
 }`,
     )
   })
+
+  it('automatically resolves cross-references between schemas', () => {
+    const ProductSchema = z.object({
+      id: z.string().uuid(),
+      name: z.string(),
+    })
+
+    const LocationSchema = z.object({
+      id: z.string().uuid(),
+      address: z.string(),
+    })
+
+    const InventorySchema = z.object({
+      id: z.string().uuid(),
+      product: ProductSchema,
+      location: LocationSchema.optional(),
+      quantity: z.number().int(),
+    })
+
+    const result = zodSchemasToGql({
+      DomainProduct: ProductSchema,
+      DomainLocation: LocationSchema,
+      DomainInventory: InventorySchema,
+    })
+
+    assert.strictEqual(
+      result,
+      `type DomainProduct {
+  id: UUID!
+  name: String!
+}
+
+type DomainLocation {
+  id: UUID!
+  address: String!
+}
+
+type DomainInventory {
+  id: UUID!
+  product: DomainProduct!
+  location: DomainLocation
+  quantity: Int!
+}`,
+    )
+  })
+
+  it('resolves cross-references in arrays', () => {
+    const TagSchema = z.object({
+      name: z.string(),
+    })
+
+    const ArticleSchema = z.object({
+      title: z.string(),
+      tags: z.array(TagSchema),
+    })
+
+    const result = zodSchemasToGql({
+      Tag: TagSchema,
+      Article: ArticleSchema,
+    })
+
+    assert.strictEqual(
+      result,
+      `type Tag {
+  name: String!
+}
+
+type Article {
+  title: String!
+  tags: [Tag!]!
+}`,
+    )
+  })
+
+  it('throws in strict mode when referencing unregistered schema', () => {
+    const UnregisteredSchema = z.object({
+      foo: z.string(),
+    })
+
+    const MainSchema = z.object({
+      ref: UnregisteredSchema,
+    })
+
+    assert.throws(
+      () => zodSchemasToGql({ Main: MainSchema }, { strict: true }),
+      /Strict mode: Field "ref" on type "Main" references an unregistered object schema/,
+    )
+  })
+
+  it('throws in strict mode for unregistered schemas in arrays', () => {
+    const UnregisteredSchema = z.object({
+      foo: z.string(),
+    })
+
+    const MainSchema = z.object({
+      items: z.array(UnregisteredSchema),
+    })
+
+    assert.throws(
+      () => zodSchemasToGql({ Main: MainSchema }, { strict: true }),
+      /Strict mode: Field "items" on type "Main" references an unregistered object schema/,
+    )
+  })
+
+  it('does not throw in non-strict mode for unregistered schemas', () => {
+    const UnregisteredSchema = z.object({
+      foo: z.string(),
+    })
+
+    const MainSchema = z.object({
+      ref: UnregisteredSchema,
+    })
+
+    const result = zodSchemasToGql({ Main: MainSchema })
+
+    assert.strictEqual(
+      result,
+      `type Main {
+  ref: JSON!
+}`,
+    )
+  })
+
+  it('merges user-provided types with auto-resolved types', () => {
+    const ExternalSchema = z.object({
+      value: z.string(),
+    })
+
+    const InternalSchema = z.object({
+      name: z.string(),
+    })
+
+    const MainSchema = z.object({
+      external: ExternalSchema,
+      internal: InternalSchema,
+    })
+
+    const result = zodSchemasToGql(
+      {
+        Internal: InternalSchema,
+        Main: MainSchema,
+      },
+      {
+        types: new Map([[ExternalSchema, 'ExternalType']]),
+      },
+    )
+
+    assert.strictEqual(
+      result,
+      `type Internal {
+  name: String!
+}
+
+type Main {
+  external: ExternalType!
+  internal: Internal!
+}`,
+    )
+  })
 })
 
 describe('zodToGql with types map', () => {
