@@ -224,14 +224,26 @@ function resolveBaseType(
   }
 
   if (schema instanceof z.ZodLiteral) {
-    const def = schema._def as { value?: unknown; values?: unknown }
-    const value = def.value ?? def.values
+    // Zod 4 uses .value property, Zod 3 uses _def.value
+    const value = schema.value
     if (typeof value === 'string') return 'String'
     if (typeof value === 'number') return Number.isInteger(value) ? 'Int' : 'Float'
     if (typeof value === 'boolean') return 'Boolean'
   }
 
   if (schema instanceof z.ZodUnion) {
+    const options = schema.options as ZodSchema[]
+    const allStringish = options.every((opt) => {
+      if (opt instanceof z.ZodString || opt instanceof z.ZodEnum) return true
+      if (opt instanceof z.ZodLiteral && typeof opt.value === 'string') return true
+      return false
+    })
+    if (!allStringish) {
+      throw new Error(
+        `Union types can only contain strings, string literals, or enums. ` +
+          `For object unions, register each type in the schemas record.`,
+      )
+    }
     return 'String'
   }
 

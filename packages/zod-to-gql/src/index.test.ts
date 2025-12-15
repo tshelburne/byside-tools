@@ -155,6 +155,112 @@ describe('zodToGql', () => {
 }`,
     )
   })
+
+  it('handles datetime strings', () => {
+    const schema = z.object({
+      createdAt: z.string().datetime(),
+      updatedAt: z.string().datetime().optional(),
+    })
+
+    const result = zodToGql('Timestamps', schema)
+
+    assert.strictEqual(
+      result,
+      `type Timestamps {
+  createdAt: Datetime!
+  updatedAt: Datetime
+}`,
+    )
+  })
+
+  it('handles nullable fields', () => {
+    const schema = z.object({
+      name: z.string(),
+      deletedAt: z.string().datetime().nullable(),
+    })
+
+    const result = zodToGql('SoftDelete', schema)
+
+    assert.strictEqual(
+      result,
+      `type SoftDelete {
+  name: String!
+  deletedAt: Datetime
+}`,
+    )
+  })
+
+  it('handles literal types', () => {
+    const schema = z.object({
+      stringLiteral: z.literal('constant'),
+      intLiteral: z.literal(42),
+      floatLiteral: z.literal(3.14),
+      boolLiteral: z.literal(true),
+    })
+
+    const result = zodToGql('Literals', schema)
+
+    assert.strictEqual(
+      result,
+      `type Literals {
+  stringLiteral: String!
+  intLiteral: Int!
+  floatLiteral: Float!
+  boolLiteral: Boolean!
+}`,
+    )
+  })
+
+  it('handles union of string literals as String', () => {
+    const schema = z.object({
+      status: z.union([z.literal('active'), z.literal('inactive')]),
+    })
+
+    const result = zodToGql('WithUnion', schema)
+
+    assert.strictEqual(
+      result,
+      `type WithUnion {
+  status: String!
+}`,
+    )
+  })
+
+  it('handles union of strings and enums as String', () => {
+    const schema = z.object({
+      value: z.union([z.string(), z.enum(['a', 'b'])]),
+    })
+
+    const result = zodToGql('MixedUnion', schema)
+
+    assert.strictEqual(
+      result,
+      `type MixedUnion {
+  value: String!
+}`,
+    )
+  })
+
+  it('throws for union of non-string types', () => {
+    const schema = z.object({
+      value: z.union([z.literal(1), z.literal(2)]),
+    })
+
+    assert.throws(
+      () => zodToGql('BadUnion', schema),
+      /Union types can only contain strings, string literals, or enums/,
+    )
+  })
+
+  it('throws for union containing objects', () => {
+    const A = z.object({ a: z.string() })
+    const B = z.object({ b: z.string() })
+    const schema = z.object({
+      value: z.union([A, B]),
+    })
+
+    assert.throws(() => zodToGql('ObjectUnion', schema), /Union types can only contain strings/)
+  })
 })
 
 describe('zodToGql with record', () => {
