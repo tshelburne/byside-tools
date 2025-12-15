@@ -50,8 +50,31 @@ export function zodToGql(
 }
 
 /**
+ * Convert multiple Zod schemas to GraphQL SDL.
+ * Automatically resolves cross-references between schemas in the record.
+ */
+function zodSchemasToGql(
+  schemas: Record<string, ZodSchema>,
+  options: ZodToGqlOptions = {},
+): string {
+  const types = new Map<ZodSchema, string>(options.types)
+  for (const [name, schema] of Object.entries(schemas)) {
+    types.set(schema, name)
+  }
+
+  const mergedOptions: ZodToGqlOptions = { ...options, types }
+
+  if (options.strict) {
+    validateAllReferences(schemas, types)
+  }
+
+  return Object.entries(schemas)
+    .map(([name, schema]) => zodSchemaToGql(name, schema, mergedOptions))
+    .join('\n\n')
+}
+
+/**
  * Convert a single Zod schema to GraphQL SDL type definition.
- * Compatible with both Zod 3 and Zod 4 schemas.
  */
 function zodSchemaToGql(name: string, schema: ZodSchema, options: ZodToGqlOptions = {}): string {
   const scalars = { ...DEFAULT_SCALARS, ...options.scalars }
@@ -84,102 +107,6 @@ function zodSchemaToGql(name: string, schema: ZodSchema, options: ZodToGqlOption
   return lines.join('\n')
 }
 
-/**
- * Resolve union members to their GraphQL type names.
- * All members must be registered object types.
- */
-function resolveUnionMembers(schema: z.ZodUnion<never>, types?: Map<ZodSchema, string>): string[] {
-  const options = (schema as { options: readonly ZodSchema[] }).options
-  const members: string[] = []
-
-  for (const opt of options) {
-    if (!(opt instanceof z.ZodObject)) {
-      throw new Error(
-        `Union members must be object types when used as a top-level union declaration.`,
-      )
-    }
-    const typeName = types?.get(opt)
-    if (!typeName) {
-      throw new Error(
-        `Union member is not registered in the types map. ` +
-          `Register all union member schemas in the schemas record.`,
-      )
-    }
-    members.push(typeName)
-  }
-
-  return members
-}
-
-/**
- * Convert multiple Zod schemas to GraphQL SDL.
- * Automatically resolves cross-references between schemas in the record.
- * Compatible with both Zod 3 and Zod 4 schemas.
- */
-function zodSchemasToGql(
-  schemas: Record<string, ZodSchema>,
-  options: ZodToGqlOptions = {},
-): string {
-  // Build types Map from schemas record, merging with any user-provided types
-  const types = new Map<ZodSchema, string>(options.types)
-  for (const [name, schema] of Object.entries(schemas)) {
-    types.set(schema, name)
-  }
-
-  const mergedOptions: ZodToGqlOptions = {
-    ...options,
-    types,
-  }
-
-  if (options.strict) {
-    validateAllReferences(schemas, types)
-  }
-
-  return Object.entries(schemas)
-    .map(([name, schema]) => zodSchemaToGql(name, schema, mergedOptions))
-    .join('\n\n')
-}
-
-/**
- * Validate that all object schema references are present in the types map.
- * Throws if an unregistered object schema is found.
- */
-function validateAllReferences(
-  schemas: Record<string, ZodSchema>,
-  types: Map<ZodSchema, string>,
-): void {
-  for (const [typeName, schema] of Object.entries(schemas)) {
-    if (schema instanceof z.ZodObject) {
-      const shape = schema.shape as Record<string, ZodSchema>
-      for (const [fieldName, fieldSchema] of Object.entries(shape)) {
-        validateFieldSchema(fieldSchema, types, typeName, fieldName)
-      }
-    }
-  }
-}
-
-function validateFieldSchema(
-  schema: ZodSchema,
-  types: Map<ZodSchema, string>,
-  parentType: string,
-  fieldName: string,
-): void {
-  const unwrapped = unwrapSchema(schema)
-  const inner = unwrapped.schema
-
-  if (inner instanceof z.ZodArray) {
-    validateFieldSchema(inner.element, types, parentType, fieldName)
-    return
-  }
-
-  if (inner instanceof z.ZodObject && !types.has(inner)) {
-    throw new Error(
-      `Strict mode: Field "${fieldName}" on type "${parentType}" references an unregistered object schema. ` +
-        `Add it to the schemas record or disable strict mode.`,
-    )
-  }
-}
-
 function zodTypeToGql(
   schema: ZodSchema,
   scalars: Record<string, string>,
@@ -193,10 +120,7 @@ function zodTypeToGql(
   return isOptional ? baseType : `${baseType}!`
 }
 
-function unwrapSchema(schema: ZodSchema): {
-  schema: ZodSchema
-  isOptional: boolean
-} {
+function unwrapSchema(schema: ZodSchema): { schema: ZodSchema; isOptional: boolean } {
   if (schema instanceof z.ZodOptional || schema instanceof z.ZodNullable) {
     return { schema: schema.unwrap(), isOptional: true }
   }
@@ -256,7 +180,6 @@ function resolveBaseType(
   }
 
   if (schema instanceof z.ZodLiteral) {
-    // Zod 4 uses .value property, Zod 3 uses _def.value
     const value = schema.value
     if (typeof value === 'string') return 'String'
     if (typeof value === 'number') return Number.isInteger(value) ? 'Int' : 'Float'
@@ -266,12 +189,10 @@ function resolveBaseType(
   if (schema instanceof z.ZodUnion) {
     const options = schema.options as ZodSchema[]
 
-    // Check if union itself is registered
     if (types?.has(schema)) {
       return types.get(schema)!
     }
 
-    // Check if all members are strings/enums/string literals → String
     const allStringish = options.every((opt) => {
       if (opt instanceof z.ZodString || opt instanceof z.ZodEnum) return true
       if (opt instanceof z.ZodLiteral && typeof opt.value === 'string') return true
@@ -281,7 +202,6 @@ function resolveBaseType(
       return 'String'
     }
 
-    // Check if all members are numbers → Int or Float
     const allNumbers = options.every(
       (opt) =>
         opt instanceof z.ZodNumber ||
@@ -299,7 +219,6 @@ function resolveBaseType(
       return allInts ? 'Int' : 'Float'
     }
 
-    // Check if all members are booleans → Boolean
     const allBooleans = options.every(
       (opt) =>
         opt instanceof z.ZodBoolean ||
@@ -309,7 +228,6 @@ function resolveBaseType(
       return 'Boolean'
     }
 
-    // Check if all members are registered objects → error with helpful message
     const allObjects = options.every((opt) => opt instanceof z.ZodObject)
     if (allObjects) {
       throw new Error(
@@ -325,4 +243,63 @@ function resolveBaseType(
   }
 
   return 'String'
+}
+
+function resolveUnionMembers(schema: z.ZodUnion<never>, types?: Map<ZodSchema, string>): string[] {
+  const options = (schema as { options: readonly ZodSchema[] }).options
+  const members: string[] = []
+
+  for (const opt of options) {
+    if (!(opt instanceof z.ZodObject)) {
+      throw new Error(
+        `Union members must be object types when used as a top-level union declaration.`,
+      )
+    }
+    const typeName = types?.get(opt)
+    if (!typeName) {
+      throw new Error(
+        `Union member is not registered in the types map. ` +
+          `Register all union member schemas in the schemas record.`,
+      )
+    }
+    members.push(typeName)
+  }
+
+  return members
+}
+
+function validateAllReferences(
+  schemas: Record<string, ZodSchema>,
+  types: Map<ZodSchema, string>,
+): void {
+  for (const [typeName, schema] of Object.entries(schemas)) {
+    if (schema instanceof z.ZodObject) {
+      const shape = schema.shape as Record<string, ZodSchema>
+      for (const [fieldName, fieldSchema] of Object.entries(shape)) {
+        validateFieldSchema(fieldSchema, types, typeName, fieldName)
+      }
+    }
+  }
+}
+
+function validateFieldSchema(
+  schema: ZodSchema,
+  types: Map<ZodSchema, string>,
+  parentType: string,
+  fieldName: string,
+): void {
+  const unwrapped = unwrapSchema(schema)
+  const inner = unwrapped.schema
+
+  if (inner instanceof z.ZodArray) {
+    validateFieldSchema(inner.element, types, parentType, fieldName)
+    return
+  }
+
+  if (inner instanceof z.ZodObject && !types.has(inner)) {
+    throw new Error(
+      `Strict mode: Field "${fieldName}" on type "${parentType}" references an unregistered object schema. ` +
+        `Add it to the schemas record or disable strict mode.`,
+    )
+  }
 }
