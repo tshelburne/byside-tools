@@ -1,6 +1,6 @@
 {
   "name": "@byside/utils",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "description": "Common utility functions for arrays, strings, promises, and browser operations",
   "license": "MIT",
@@ -26,8 +26,9 @@
     "dist"
   ],
   "scripts": {
+    "node": "node --import tsx",
     "build": "tsc -p tsconfig.build.json",
-    "test": "node --import tsx --test 'src/**/*.test.ts'",
+    "test": "pnpm node --test 'src/**/*.test.ts'",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist"
   },

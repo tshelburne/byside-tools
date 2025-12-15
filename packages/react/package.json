@@ -1,6 +1,6 @@
 {
   "name": "@byside/react",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "Reusable React hooks and utilities for form state, DOM manipulation, and storage",
   "license": "MIT",
@@ -26,8 +26,9 @@
     "dist"
   ],
   "scripts": {
+    "node": "node --import tsx",
     "build": "tsc -p tsconfig.build.json",
-    "test": "node --import tsx --test 'src/**/*.test.ts' 'src/**/*.test.tsx'",
+    "test": "pnpm node --test 'src/**/*.test.ts' 'src/**/*.test.tsx'",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist"
   },
