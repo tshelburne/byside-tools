@@ -26,11 +26,18 @@ export interface GenerateTextOptions {
   maxTokens?: number
 }
 
-export interface GenerateObjectOptions<T extends z.ZodType> {
+/**
+ * Options for generating structured objects from LLM.
+ * The schema parameter accepts any Zod schema (compatible with both Zod 3 and Zod 4).
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export interface GenerateObjectOptions<TSchema = any, TOutput = any> {
   model: LanguageModel
   system: string
   prompt: string
-  schema: T
+  /** Zod schema for structured output. Works with both Zod 3 and Zod 4. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  schema: TSchema
   imageBase64?: string
   temperature?: number
   maxTokens?: number

@@ -35,9 +35,14 @@ export async function generateText(options: GenerateTextOptions): Promise<LlmRes
   return { content: result.text, usage }
 }
 
-export async function generateObject<T extends z.ZodType>(
-  options: GenerateObjectOptions<T>,
-): Promise<LlmResult<z.infer<T>>> {
+/**
+ * Generate a structured object from an LLM using a Zod schema.
+ * Compatible with both Zod 3 and Zod 4 schemas.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function generateObject<TSchema = any, TOutput = any>(
+  options: GenerateObjectOptions<TSchema, TOutput>,
+): Promise<LlmResult<TOutput>> {
   const startTime = Date.now()
   const promptHash = hashPrompt(options.system, options.prompt)
 
@@ -45,7 +50,8 @@ export async function generateObject<T extends z.ZodType>(
     model: options.model,
     system: options.system,
     messages: buildMessages(options.prompt, options.imageBase64),
-    schema: options.schema,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    schema: options.schema as any,
     temperature: options.temperature,
     maxOutputTokens: options.maxTokens,
   })
@@ -58,7 +64,7 @@ export async function generateObject<T extends z.ZodType>(
     model: result.response.modelId ?? 'unknown',
   }
 
-  return { content: result.object as z.infer<T>, usage }
+  return { content: result.object as TOutput, usage }
 }
 
 function buildMessages(prompt: string, imageBase64?: string): ModelMessage[] {
