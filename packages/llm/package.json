@@ -1,6 +1,6 @@
 {
   "name": "@byside/llm",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "LLM utilities with unified provider interface and usage tracking",
   "license": "MIT",
