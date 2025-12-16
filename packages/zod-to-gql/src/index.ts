@@ -10,6 +10,8 @@ export type ZodToGqlOptions = {
   types?: Map<ZodSchema, string>
   /** Throw if an object schema is encountered that isn't in the schemas record (only applies to record overload) */
   strict?: boolean
+  /** Preserve original case for enum values instead of uppercasing them */
+  preserveEnumCase?: boolean
 }
 
 const DEFAULT_SCALARS: Record<string, string> = {
@@ -92,7 +94,7 @@ function zodSchemaToGql(name: string, schema: ZodSchema, options: ZodToGqlOption
   } else if (schema instanceof z.ZodEnum) {
     lines.push(`enum ${name} {`)
     for (const value of schema.options as string[]) {
-      lines.push(`  ${value.toUpperCase()}`)
+      lines.push(`  ${options.preserveEnumCase ? value : value.toUpperCase()}`)
     }
     lines.push('}')
   } else if (schema instanceof z.ZodUnion) {

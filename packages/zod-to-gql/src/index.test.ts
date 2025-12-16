@@ -69,6 +69,12 @@ describe('zodToGql', () => {
       assert.strictEqual(result, `enum Status {\n  PENDING\n  ACTIVE\n  COMPLETED\n}`)
     })
 
+    it('preserves enum case with preserveEnumCase option', () => {
+      const schema = z.enum(['liquor', 'beer', 'Wine'])
+      const result = zodToGql('DrinkType', schema, { preserveEnumCase: true })
+      assert.strictEqual(result, `enum DrinkType {\n  liquor\n  beer\n  Wine\n}`)
+    })
+
     it('converts enum field to String', () => {
       const schema = z.object({ status: z.enum(['active', 'inactive']) })
       const result = zodToGql('User', schema)
@@ -185,6 +191,14 @@ type Role {
   name: String!
 }`,
       )
+    })
+
+    it('preserves enum case with preserveEnumCase option', () => {
+      const result = zodToGql(
+        { DrinkType: z.enum(['liquor', 'beer', 'Wine']) },
+        { preserveEnumCase: true },
+      )
+      assert.strictEqual(result, `enum DrinkType {\n  liquor\n  beer\n  Wine\n}`)
     })
   })
 
