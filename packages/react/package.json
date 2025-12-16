@@ -7,7 +7,7 @@
   "author": "Byside",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/byside/tools.git",
+    "url": "git+https://github.com/tshelburne/byside-tools.git",
     "directory": "packages/react"
   },
   "main": "./dist/index.js",
