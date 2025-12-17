@@ -1,6 +1,6 @@
 {
   "name": "@byside/react",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "description": "Reusable React hooks and utilities for form state, DOM manipulation, and storage",
   "license": "MIT",
