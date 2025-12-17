@@ -1,5 +1,11 @@
 # @byside/react
 
+## 0.2.1
+
+### Patch Changes
+
+- d442ca9: added async storage exports
+
 ## 0.2.0
 
 ### Minor Changes
