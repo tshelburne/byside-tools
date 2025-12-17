@@ -138,3 +138,85 @@ export function clearStorage(storage: Storage, pattern: RegExp) {
     .filter((key) => pattern.test(key))
     .forEach((key) => storage.removeItem(key))
 }
+
+// Async Storage
+
+/**
+ * Async storage interface compatible with React Native AsyncStorage
+ * and similar async key-value stores.
+ */
+export interface AsyncStorage {
+  getItem(key: string): Promise<string | null>
+  setItem(key: string, value: string): Promise<void>
+  removeItem(key: string): Promise<void>
+}
+
+/**
+ * Return type for async storage hook.
+ * Includes loading state since initial value is fetched asynchronously.
+ */
+export type AsyncStorageReturn<T> = readonly [
+  value: T,
+  setValue: (value: T) => void,
+  isLoading: boolean,
+]
+
+/**
+ * Hook for async storage APIs like React Native's AsyncStorage.
+ * Values are JSON serialized automatically.
+ *
+ * Unlike useStorage, this returns a loading state since the initial
+ * value must be fetched asynchronously.
+ *
+ * @example
+ * const [user, setUser, isLoading] = useAsyncStorage('user', asyncStorage, { init: null })
+ *
+ * if (isLoading) return <Loading />
+ */
+export function useAsyncStorage<T>(
+  key: string | null,
+  storage: AsyncStorage,
+  opts?: StorageOptions<T>,
+): AsyncStorageReturn<T> {
+  const { init = null as T, onReload = (v: T) => v } = opts ?? {}
+  const keyMapper = useStorageContext()
+  const finalKey = key ? keyMapper(key) : null
+
+  const [value, setValue] = useState<T>(init)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    if (!finalKey) {
+      setIsLoading(false)
+      return
+    }
+
+    setIsLoading(true)
+    storage.getItem(finalKey).then((item) => {
+      if (item === null) {
+        setValue(init)
+      } else {
+        try {
+          setValue(onReload(JSON.parse(item) as T))
+        } catch {
+          setValue(init)
+        }
+      }
+      setIsLoading(false)
+    })
+  }, [finalKey])
+
+  return [value, set, isLoading] as const
+
+  function set(newValue: T) {
+    setValue(newValue)
+
+    if (!finalKey) return
+
+    if (newValue === null) {
+      storage.removeItem(finalKey)
+    } else {
+      storage.setItem(finalKey, JSON.stringify(newValue))
+    }
+  }
+}

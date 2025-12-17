@@ -14,6 +14,7 @@ export {
   useStorage,
   useSession,
   useLocal,
+  useAsyncStorage,
   clearStorage,
   StorageProvider,
   useStorageContext,
@@ -21,4 +22,6 @@ export {
   type StorageReturn,
   type StorageProviderProps,
   type KeyMapper,
+  type AsyncStorage,
+  type AsyncStorageReturn,
 } from './storage.js'
