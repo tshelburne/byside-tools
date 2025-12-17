@@ -1,5 +1,11 @@
 # @byside/react
 
+## 0.2.0
+
+### Minor Changes
+
+- b1403a2: added async storage'
+
 ## 0.1.1
 
 ### Patch Changes
