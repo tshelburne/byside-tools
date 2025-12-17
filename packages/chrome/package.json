@@ -1,0 +1,49 @@
+{
+  "name": "@byside/chrome",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Type-safe Chrome extension messaging utilities",
+  "license": "MIT",
+  "author": "Byside",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tshelburne/byside-tools.git",
+    "directory": "packages/chrome"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./*": {
+      "types": "./dist/*.d.ts",
+      "import": "./dist/*.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "node": "node --import tsx",
+    "build": "tsc -p tsconfig.build.json",
+    "test": "pnpm node --test 'src/**/*.test.ts'",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.1.32",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.2"
+  },
+  "keywords": [
+    "chrome",
+    "extension",
+    "messaging",
+    "typescript"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}
