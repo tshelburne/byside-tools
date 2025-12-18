@@ -27,33 +27,33 @@ function _typeTests() {
 
   // --- Action name must be valid ---
   // @ts-expect-error - 'invalidAction' is not a valid action name
-  void typeTest.content.send('invalidAction')
+  void typeTest.background.send('invalidAction')
 
   // @ts-expect-error - 'invalidAction' is not a valid action name
-  void typeTest.background.send(1, 'invalidAction')
+  void typeTest.content.send(1, 'invalidAction')
 
   // --- Request payload type must match ---
   // @ts-expect-error - payload should be { id: number }, not { id: string }
-  void typeTest.content.send('withPayload', { id: 'wrong' })
+  void typeTest.background.send('withPayload', { id: 'wrong' })
 
   // @ts-expect-error - payload should be { id: number }, not { name: string }
-  void typeTest.content.send('withPayload', { name: 'wrong' })
+  void typeTest.background.send('withPayload', { name: 'wrong' })
 
   // @ts-expect-error - payload should be { name: string }, not { id: number }
-  void typeTest.background.send(1, 'contentAction', { id: 123 })
+  void typeTest.content.send(1, 'contentAction', { id: 123 })
 
   // --- Required payload must be provided ---
   // @ts-expect-error - 'withPayload' requires a payload
-  void typeTest.content.send('withPayload')
+  void typeTest.background.send('withPayload')
 
   // --- Void payload should not accept arguments ---
   // @ts-expect-error - 'noPayload' takes void, should not accept payload
-  void typeTest.content.send('noPayload', { extra: 'data' })
+  void typeTest.background.send('noPayload', { extra: 'data' })
 
   // --- These should all compile fine (no errors) ---
-  void typeTest.content.send('withPayload', { id: 123 })
-  void typeTest.content.send('noPayload')
-  void typeTest.background.send(1, 'contentAction', { name: 'Tim' })
+  void typeTest.background.send('withPayload', { id: 123 })
+  void typeTest.background.send('noPayload')
+  void typeTest.content.send(1, 'contentAction', { name: 'Tim' })
 }
 void _typeTests // Suppress unused warning
 
@@ -132,13 +132,13 @@ describe('defineMessaging', () => {
   })
 })
 
-describe('content.send (to background)', () => {
+describe('background.send (to background)', () => {
   it('sends message with action and payload', async () => {
     mockChrome.runtime.sendMessage.mock.mockImplementation(() =>
       Promise.resolve({ success: true, data: { data: {} } }),
     )
 
-    await content.send('gql', { query: 'query { users }', variables: { id: 1 } })
+    await background.send('gql', { query: 'query { users }', variables: { id: 1 } })
 
     assert.equal(mockChrome.runtime.sendMessage.mock.calls.length, 1)
     assert.deepEqual(firstCall(mockChrome.runtime.sendMessage).arguments, [
@@ -151,7 +151,7 @@ describe('content.send (to background)', () => {
       Promise.resolve({ success: true, data: { version: '1.0.0' } }),
     )
 
-    await content.send('info')
+    await background.send('info')
 
     assert.equal(mockChrome.runtime.sendMessage.mock.calls.length, 1)
     assert.deepEqual(firstCall(mockChrome.runtime.sendMessage).arguments, [{ action: 'info' }])
@@ -161,19 +161,19 @@ describe('content.send (to background)', () => {
     const expectedResult = { success: true as const, data: { version: '1.0.0', tabId: 1 } }
     mockChrome.runtime.sendMessage.mock.mockImplementation(() => Promise.resolve(expectedResult))
 
-    const result = await content.send('info')
+    const result = await background.send('info')
 
     assert.deepEqual(result, expectedResult)
   })
 })
 
-describe('background.send (to content)', () => {
+describe('content.send (to content)', () => {
   it('sends message to specific tab with action and payload', async () => {
     mockChrome.tabs.sendMessage.mock.mockImplementation(() =>
       Promise.resolve({ success: true, data: undefined }),
     )
 
-    await background.send(123, 'highlight', { selector: '.target' })
+    await content.send(123, 'highlight', { selector: '.target' })
 
     assert.equal(mockChrome.tabs.sendMessage.mock.calls.length, 1)
     assert.deepEqual(firstCall(mockChrome.tabs.sendMessage).arguments, [
@@ -187,7 +187,7 @@ describe('background.send (to content)', () => {
       Promise.resolve({ success: true, data: { html: '<html></html>' } }),
     )
 
-    await background.send(456, 'html')
+    await content.send(456, 'html')
 
     assert.equal(mockChrome.tabs.sendMessage.mock.calls.length, 1)
     assert.deepEqual(firstCall(mockChrome.tabs.sendMessage).arguments, [456, { action: 'html' }])

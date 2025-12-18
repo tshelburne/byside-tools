@@ -26,11 +26,11 @@
  *
  * // In background worker:
  * background.onMessage()
- * const result = await background.send(tabId, 'html')
+ * const result = await content.send(tabId, 'html')
  *
  * // In content script:
  * content.onMessage()
- * const result = await content.send('gql', { query: '...' })
+ * const result = await background.send('gql', { query: '...' })
  * ```
  */
 
@@ -80,15 +80,15 @@ type SendToContent<CT extends Handlers> = <A extends keyof CT & string>(
   ...args: InferReq<CT[A]> extends void ? [] : [InferReq<CT[A]>]
 ) => Promise<MessageResult<InferRes<CT[A]>>>
 
-/** Background context API */
-interface BackgroundContext<CT extends Handlers> {
-  send: SendToContent<CT>
+/** Background context API - for communicating with the background script */
+interface BackgroundContext<BG extends Handlers> {
+  send: SendToBackground<BG>
   onMessage: (config?: OnMessageConfig) => void
 }
 
-/** Content context API */
-interface ContentContext<BG extends Handlers> {
-  send: SendToBackground<BG>
+/** Content context API - for communicating with content scripts */
+interface ContentContext<CT extends Handlers> {
+  send: SendToContent<CT>
   onMessage: (config?: OnMessageConfig) => void
 }
 
@@ -102,20 +102,20 @@ export function defineMessaging<BG extends Handlers, CT extends Handlers>(config
   background: BG
   content: CT
 }): {
-  background: BackgroundContext<CT>
-  content: ContentContext<BG>
+  background: BackgroundContext<BG>
+  content: ContentContext<CT>
 } {
   return {
     background: {
-      send: (tabId, action, ...args) =>
-        sendMessage(action, args[0], (msg) => chrome.tabs.sendMessage(tabId, msg)),
+      send: (action, ...args) =>
+        sendMessage(action, args[0], (msg) => chrome.runtime.sendMessage(msg)),
       onMessage: (opts?) => {
         chrome.runtime.onMessage.addListener(createListener(config.background, opts))
       },
     },
     content: {
-      send: (action, ...args) =>
-        sendMessage(action, args[0], (msg) => chrome.runtime.sendMessage(msg)),
+      send: (tabId, action, ...args) =>
+        sendMessage(action, args[0], (msg) => chrome.tabs.sendMessage(tabId, msg)),
       onMessage: (opts?) => {
         chrome.runtime.onMessage.addListener(createListener(config.content, opts))
       },
