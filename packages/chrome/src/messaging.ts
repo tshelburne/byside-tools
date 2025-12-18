@@ -25,12 +25,13 @@
  * })
  *
  * // In background worker:
- * background.onMessage()
+ * background.listen()  // or background.onMessage()
  * const result = await content.send(tabId, 'html')
  *
  * // In content script:
- * content.onMessage()
- * const result = await background.send('gql', { query: '...' })
+ * content.listen()  // or content.onMessage()
+ * const info = await background.request('info')  // semantic: expecting data
+ * const result = await background.send('gql', { query: '...' })  // semantic: sending data
  * ```
  */
 
@@ -82,14 +83,26 @@ type SendToContent<CT extends Handlers> = <A extends keyof CT & string>(
 
 /** Background context API - for communicating with the background script */
 interface BackgroundContext<BG extends Handlers> {
+  /** Send a message to background (alias: request) */
   send: SendToBackground<BG>
+  /** Request data from background (alias for send, semantic for expecting response) */
+  request: SendToBackground<BG>
+  /** Register message handlers (alias: listen) */
   onMessage: (config?: OnMessageConfig) => void
+  /** Start listening for messages (alias for onMessage) */
+  listen: (config?: OnMessageConfig) => void
 }
 
 /** Content context API - for communicating with content scripts */
 interface ContentContext<CT extends Handlers> {
+  /** Send a message to content script (alias: request) */
   send: SendToContent<CT>
+  /** Request data from content script (alias for send, semantic for expecting response) */
+  request: SendToContent<CT>
+  /** Register message handlers (alias: listen) */
   onMessage: (config?: OnMessageConfig) => void
+  /** Start listening for messages (alias for onMessage) */
+  listen: (config?: OnMessageConfig) => void
 }
 
 /**
@@ -105,20 +118,32 @@ export function defineMessaging<BG extends Handlers, CT extends Handlers>(config
   background: BackgroundContext<BG>
   content: ContentContext<CT>
 } {
+  const backgroundSend: SendToBackground<BG> = (action, ...args) =>
+    sendMessage(action, args[0], (msg) => chrome.runtime.sendMessage(msg))
+
+  const backgroundListen = (opts?: OnMessageConfig) => {
+    chrome.runtime.onMessage.addListener(createListener(config.background, opts))
+  }
+
+  const contentSend: SendToContent<CT> = (tabId, action, ...args) =>
+    sendMessage(action, args[0], (msg) => chrome.tabs.sendMessage(tabId, msg))
+
+  const contentListen = (opts?: OnMessageConfig) => {
+    chrome.runtime.onMessage.addListener(createListener(config.content, opts))
+  }
+
   return {
     background: {
-      send: (action, ...args) =>
-        sendMessage(action, args[0], (msg) => chrome.runtime.sendMessage(msg)),
-      onMessage: (opts?) => {
-        chrome.runtime.onMessage.addListener(createListener(config.background, opts))
-      },
+      send: backgroundSend,
+      request: backgroundSend,
+      onMessage: backgroundListen,
+      listen: backgroundListen,
     },
     content: {
-      send: (tabId, action, ...args) =>
-        sendMessage(action, args[0], (msg) => chrome.tabs.sendMessage(tabId, msg)),
-      onMessage: (opts?) => {
-        chrome.runtime.onMessage.addListener(createListener(config.content, opts))
-      },
+      send: contentSend,
+      request: contentSend,
+      onMessage: contentListen,
+      listen: contentListen,
     },
   }
 }

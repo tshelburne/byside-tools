@@ -54,6 +54,30 @@ function _typeTests() {
   void typeTest.background.send('withPayload', { id: 123 })
   void typeTest.background.send('noPayload')
   void typeTest.content.send(1, 'contentAction', { name: 'Tim' })
+
+  // --- request() should have same type constraints as send() ---
+  // @ts-expect-error - 'invalidAction' is not a valid action name
+  void typeTest.background.request('invalidAction')
+
+  // @ts-expect-error - payload should be { id: number }, not { id: string }
+  void typeTest.background.request('withPayload', { id: 'wrong' })
+
+  // @ts-expect-error - 'withPayload' requires a payload
+  void typeTest.background.request('withPayload')
+
+  // @ts-expect-error - 'invalidAction' is not a valid action name for content
+  void typeTest.content.request(1, 'invalidAction')
+
+  // --- These request() calls should compile fine ---
+  void typeTest.background.request('withPayload', { id: 123 })
+  void typeTest.background.request('noPayload')
+  void typeTest.content.request(1, 'contentAction', { name: 'Tim' })
+
+  // --- listen() should exist and be callable ---
+  typeTest.background.listen()
+  typeTest.background.listen({ onRequest: () => {} })
+  typeTest.content.listen()
+  typeTest.content.listen({ onResponse: () => {} })
 }
 void _typeTests // Suppress unused warning
 
@@ -124,11 +148,25 @@ const { background, content } = defineMessaging({
 })
 
 describe('defineMessaging', () => {
-  it('returns background and content context objects', () => {
+  it('returns background and content context objects with all methods', () => {
     assert.equal(typeof background.send, 'function')
+    assert.equal(typeof background.request, 'function')
     assert.equal(typeof background.onMessage, 'function')
+    assert.equal(typeof background.listen, 'function')
     assert.equal(typeof content.send, 'function')
+    assert.equal(typeof content.request, 'function')
     assert.equal(typeof content.onMessage, 'function')
+    assert.equal(typeof content.listen, 'function')
+  })
+
+  it('request is an alias for send', () => {
+    assert.equal(background.request, background.send)
+    assert.equal(content.request, content.send)
+  })
+
+  it('listen is an alias for onMessage', () => {
+    assert.equal(background.listen, background.onMessage)
+    assert.equal(content.listen, content.onMessage)
   })
 })
 
