@@ -78,6 +78,24 @@ function _typeTests() {
   typeTest.background.listen({ onRequest: () => {} })
   typeTest.content.listen()
   typeTest.content.listen({ onResponse: () => {} })
+
+  // --- void request handlers should infer return types correctly ---
+  // This tests the fix for InferRes with contravariant function parameters
+  const voidHandlerTest = defineMessaging({
+    background: {
+      info(_req: void, sender) {
+        return { tabId: sender.tab?.id }
+      },
+    },
+    content: {},
+  })
+
+  // response.data should be { tabId: number | undefined }, not void
+  voidHandlerTest.background.request('info').then((response) => {
+    if (response.success) {
+      const _tabId: number | undefined = response.data.tabId
+    }
+  })
 }
 void _typeTests // Suppress unused warning
 

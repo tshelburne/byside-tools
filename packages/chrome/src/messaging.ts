@@ -51,7 +51,8 @@ type InferReq<H> = H extends (req: infer R, sender: chrome.runtime.MessageSender
   : void
 
 /** Extract response type from handler */
-type InferRes<H> = H extends (req: unknown, sender: chrome.runtime.MessageSender) => infer R
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type InferRes<H> = H extends (req: any, sender: chrome.runtime.MessageSender) => infer R
   ? Awaited<R>
   : void
 
