@@ -1,5 +1,11 @@
 # @byside/chrome
 
+## 0.2.1
+
+### Patch Changes
+
+- 4236686: fixed type inference
+
 ## 0.2.0
 
 ### Minor Changes
