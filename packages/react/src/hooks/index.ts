@@ -10,6 +10,8 @@ export {
 
 export { useSingleton, _clearSingletonCache } from './singleton.js'
 
+export { useAsyncCallback, type AsyncCallbackReturn } from './async.js'
+
 export {
   useStorage,
   useSession,

@@ -27,6 +27,9 @@ export {
   // Singleton hook
   useSingleton,
   _clearSingletonCache,
+  // Async callback hook
+  useAsyncCallback,
+  type AsyncCallbackReturn,
   // Storage hooks
   useStorage,
   useSession,
