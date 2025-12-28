@@ -4,6 +4,12 @@ import {
   pick,
   omit,
   mapValues,
+  mapKeys,
+  camelCaseKeys,
+  pascalCaseKeys,
+  snakeCaseKeys,
+  kebabCaseKeys,
+  constantCaseKeys,
   removeUndefined,
   removeNullish,
   deepMerge,
@@ -244,6 +250,99 @@ describe('updateAt', () => {
     assert.deepStrictEqual(result, { a: { b: 2 } })
     assert.notStrictEqual(original, result)
     assert.notStrictEqual(original.a, result.a)
+  })
+})
+
+describe('mapKeys', () => {
+  it('transforms all keys', () => {
+    const obj = { first_name: 'John', last_name: 'Doe' }
+    assert.deepStrictEqual(
+      mapKeys(obj, (k) => k.toUpperCase()),
+      { FIRST_NAME: 'John', LAST_NAME: 'Doe' },
+    )
+  })
+
+  it('handles empty object', () => {
+    assert.deepStrictEqual(
+      mapKeys({}, (k) => k.toUpperCase()),
+      {},
+    )
+  })
+
+  it('recursively transforms nested object keys', () => {
+    const obj = { user_data: { first_name: 'John', address_info: { zip_code: '12345' } } }
+    assert.deepStrictEqual(
+      mapKeys(obj, (k) => k.toUpperCase(), { recursive: true }),
+      { USER_DATA: { FIRST_NAME: 'John', ADDRESS_INFO: { ZIP_CODE: '12345' } } },
+    )
+  })
+
+  it('recursively transforms keys in arrays of objects', () => {
+    const obj = { users: [{ first_name: 'John' }, { first_name: 'Jane' }] }
+    assert.deepStrictEqual(
+      mapKeys(obj, (k) => k.toUpperCase(), { recursive: true }),
+      { USERS: [{ FIRST_NAME: 'John' }, { FIRST_NAME: 'Jane' }] },
+    )
+  })
+
+  it('preserves non-object array items', () => {
+    const obj = { values: [1, 'two', true] }
+    assert.deepStrictEqual(
+      mapKeys(obj, (k) => k.toUpperCase(), { recursive: true }),
+      { VALUES: [1, 'two', true] },
+    )
+  })
+
+  it('does not recurse when option is false', () => {
+    const obj = { user_data: { first_name: 'John' } }
+    assert.deepStrictEqual(
+      mapKeys(obj, (k) => k.toUpperCase()),
+      {
+        USER_DATA: { first_name: 'John' },
+      },
+    )
+  })
+})
+
+describe('camelCaseKeys', () => {
+  it('transforms keys to camelCase', () => {
+    const obj = { first_name: 'John', last_name: 'Doe' }
+    assert.deepStrictEqual(camelCaseKeys(obj), { firstName: 'John', lastName: 'Doe' })
+  })
+
+  it('handles recursive option', () => {
+    const obj = { user_data: { first_name: 'John' } }
+    assert.deepStrictEqual(camelCaseKeys(obj, { recursive: true }), {
+      userData: { firstName: 'John' },
+    })
+  })
+})
+
+describe('pascalCaseKeys', () => {
+  it('transforms keys to PascalCase', () => {
+    const obj = { first_name: 'John' }
+    assert.deepStrictEqual(pascalCaseKeys(obj), { FirstName: 'John' })
+  })
+})
+
+describe('snakeCaseKeys', () => {
+  it('transforms keys to snake_case', () => {
+    const obj = { firstName: 'John', lastName: 'Doe' }
+    assert.deepStrictEqual(snakeCaseKeys(obj), { first_name: 'John', last_name: 'Doe' })
+  })
+})
+
+describe('kebabCaseKeys', () => {
+  it('transforms keys to kebab-case', () => {
+    const obj = { firstName: 'John' }
+    assert.deepStrictEqual(kebabCaseKeys(obj), { 'first-name': 'John' })
+  })
+})
+
+describe('constantCaseKeys', () => {
+  it('transforms keys to CONSTANT_CASE', () => {
+    const obj = { firstName: 'John' }
+    assert.deepStrictEqual(constantCaseKeys(obj), { FIRST_NAME: 'John' })
   })
 })
 

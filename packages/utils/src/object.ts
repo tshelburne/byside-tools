@@ -1,3 +1,5 @@
+import { camelCase, constantCase, kebabCase, pascalCase, snakeCase } from './string.js'
+
 /**
  * Pick specific keys from an object
  */
@@ -229,4 +231,112 @@ export function keyBy<T, K extends PropertyKey>(
   keyFn: (item: T) => K,
 ): Record<K, T> {
   return arr.reduce((acc, item) => ({ ...acc, [keyFn(item)]: item }), {} as Record<K, T>)
+}
+
+interface MapKeysOptions {
+  recursive?: boolean
+}
+
+/**
+ * Transform all keys in an object using a mapping function
+ *
+ * @example
+ * mapKeys({ first_name: 'John' }, k => k.toUpperCase())
+ * // { FIRST_NAME: 'John' }
+ *
+ * @example
+ * mapKeys({ user: { first_name: 'John' } }, k => k.toUpperCase(), { recursive: true })
+ * // { USER: { FIRST_NAME: 'John' } }
+ */
+export function mapKeys<T extends object>(
+  obj: T,
+  fn: (key: string) => string,
+  opts?: MapKeysOptions,
+): Record<string, unknown> {
+  const result: Record<string, unknown> = {}
+
+  for (const key of Object.keys(obj)) {
+    const value = (obj as Record<string, unknown>)[key]
+    const newKey = fn(key)
+
+    if (opts?.recursive && isPlainObject(value)) {
+      result[newKey] = mapKeys(value, fn, opts)
+    } else if (opts?.recursive && Array.isArray(value)) {
+      result[newKey] = value.map((item) => (isPlainObject(item) ? mapKeys(item, fn, opts) : item))
+    } else {
+      result[newKey] = value
+    }
+  }
+
+  return result
+}
+
+/**
+ * Transform all object keys to camelCase
+ *
+ * @example
+ * camelCaseKeys({ first_name: 'John', last_name: 'Doe' })
+ * // { firstName: 'John', lastName: 'Doe' }
+ */
+export function camelCaseKeys<T extends object>(
+  obj: T,
+  opts?: MapKeysOptions,
+): Record<string, unknown> {
+  return mapKeys(obj, camelCase, opts)
+}
+
+/**
+ * Transform all object keys to PascalCase
+ *
+ * @example
+ * pascalCaseKeys({ first_name: 'John' })
+ * // { FirstName: 'John' }
+ */
+export function pascalCaseKeys<T extends object>(
+  obj: T,
+  opts?: MapKeysOptions,
+): Record<string, unknown> {
+  return mapKeys(obj, pascalCase, opts)
+}
+
+/**
+ * Transform all object keys to snake_case
+ *
+ * @example
+ * snakeCaseKeys({ firstName: 'John', lastName: 'Doe' })
+ * // { first_name: 'John', last_name: 'Doe' }
+ */
+export function snakeCaseKeys<T extends object>(
+  obj: T,
+  opts?: MapKeysOptions,
+): Record<string, unknown> {
+  return mapKeys(obj, snakeCase, opts)
+}
+
+/**
+ * Transform all object keys to kebab-case
+ *
+ * @example
+ * kebabCaseKeys({ firstName: 'John' })
+ * // { 'first-name': 'John' }
+ */
+export function kebabCaseKeys<T extends object>(
+  obj: T,
+  opts?: MapKeysOptions,
+): Record<string, unknown> {
+  return mapKeys(obj, kebabCase, opts)
+}
+
+/**
+ * Transform all object keys to CONSTANT_CASE
+ *
+ * @example
+ * constantCaseKeys({ firstName: 'John' })
+ * // { FIRST_NAME: 'John' }
+ */
+export function constantCaseKeys<T extends object>(
+  obj: T,
+  opts?: MapKeysOptions,
+): Record<string, unknown> {
+  return mapKeys(obj, constantCase, opts)
 }
