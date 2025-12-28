@@ -1,5 +1,11 @@
 # @byside/react
 
+## 0.3.0
+
+### Minor Changes
+
+- a4e3ac1: added async callback hook
+
 ## 0.2.1
 
 ### Patch Changes
