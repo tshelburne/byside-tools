@@ -1,5 +1,12 @@
 # @byside/react
 
+## 0.3.1
+
+### Patch Changes
+
+- Updated dependencies [1aefa16]
+  - @byside/utils@0.3.0
+
 ## 0.3.0
 
 ### Minor Changes
