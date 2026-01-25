@@ -95,5 +95,8 @@ export {
   exhaustive,
 } from './guards.js'
 
+// Date utilities
+export { ensureDate } from './date.js'
+
 // Type-level testing utilities
 export type { Expect, Equals, Extends, IsNever, IsAny, IsUnknown } from './test.js'
