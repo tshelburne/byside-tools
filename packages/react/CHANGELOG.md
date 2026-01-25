@@ -1,5 +1,11 @@
 # @byside/react
 
+## 0.4.0
+
+### Minor Changes
+
+- fd21cfa: Added useForm hook
+
 ## 0.3.2
 
 ### Patch Changes
