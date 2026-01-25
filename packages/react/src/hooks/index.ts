@@ -12,6 +12,8 @@ export { useSingleton, _clearSingletonCache } from './singleton.js'
 
 export { useAsyncCallback, type AsyncCallbackReturn } from './async.js'
 
+export { useForm, type UseFormOptions, type UseFormReturn } from './form.js'
+
 export {
   useStorage,
   useSession,

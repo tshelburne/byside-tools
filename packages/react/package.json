@@ -36,7 +36,13 @@
     "@byside/utils": "workspace:*"
   },
   "peerDependencies": {
-    "react": ">=18.0.0"
+    "react": ">=18.0.0",
+    "zod": ">=3.0.0"
+  },
+  "peerDependenciesMeta": {
+    "zod": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@testing-library/react": "^16.3.1",
@@ -45,7 +51,8 @@
     "happy-dom": "^20.0.11",
     "react": "^18.3.0",
     "react-dom": "^18.3.1",
-    "tsx": "^4.19.2"
+    "tsx": "^4.19.2",
+    "zod": "^3.24.1"
   },
   "keywords": [
     "react",
