@@ -1,5 +1,11 @@
 # @byside/utils
 
+## 0.4.0
+
+### Minor Changes
+
+- e03ed02: added date utilties
+
 ## 0.3.0
 
 ### Minor Changes
