@@ -1,3 +1,19 @@
+export type {
+  CamelCase,
+  PascalCase,
+  SnakeCase,
+  KebabCase,
+  ConstantCase,
+} from './string.types.js'
+
+import type {
+  CamelCase,
+  PascalCase,
+  SnakeCase,
+  KebabCase,
+  ConstantCase,
+} from './string.types.js'
+
 /**
  * Convert to Title Case, replacing underscores with spaces
  * Example: "south_asian" -> "South Asian"
@@ -10,9 +26,9 @@ export function titleCase(value: string): string {
  * Capitalize the first letter of a string
  * Example: "hello world" -> "Hello world"
  */
-export function capitalize(value: string): string {
-  if (value.length === 0) return value
-  return value.charAt(0).toUpperCase() + value.slice(1)
+export function capitalize<S extends string>(value: S): Capitalize<S> {
+  if (value.length === 0) return value as Capitalize<S>
+  return (value.charAt(0).toUpperCase() + value.slice(1)) as Capitalize<S>
 }
 
 /**
@@ -33,15 +49,15 @@ function splitWords(value: string): string[] {
  * Example: "hello_world" -> "helloWorld"
  * Example: "Hello World" -> "helloWorld"
  */
-export function camelCase(value: string): string {
+export function camelCase<S extends string>(value: S): CamelCase<S> {
   const words = splitWords(value)
-  if (words.length === 0) return ''
+  if (words.length === 0) return '' as CamelCase<S>
   return words
     .map((word, i) => {
       const lower = word.toLowerCase()
       return i === 0 ? lower : capitalize(lower)
     })
-    .join('')
+    .join('') as CamelCase<S>
 }
 
 /**
@@ -49,9 +65,9 @@ export function camelCase(value: string): string {
  * Example: "hello_world" -> "HelloWorld"
  * Example: "hello world" -> "HelloWorld"
  */
-export function pascalCase(value: string): string {
+export function pascalCase<S extends string>(value: S): PascalCase<S> {
   const words = splitWords(value)
-  return words.map((word) => capitalize(word.toLowerCase())).join('')
+  return words.map((word) => capitalize(word.toLowerCase())).join('') as PascalCase<S>
 }
 
 /**
@@ -59,9 +75,9 @@ export function pascalCase(value: string): string {
  * Example: "helloWorld" -> "hello_world"
  * Example: "Hello World" -> "hello_world"
  */
-export function snakeCase(value: string): string {
+export function snakeCase<S extends string>(value: S): SnakeCase<S> {
   const words = splitWords(value)
-  return words.map((word) => word.toLowerCase()).join('_')
+  return words.map((word) => word.toLowerCase()).join('_') as SnakeCase<S>
 }
 
 /**
@@ -69,18 +85,18 @@ export function snakeCase(value: string): string {
  * Example: "helloWorld" -> "hello-world"
  * Example: "Hello World" -> "hello-world"
  */
-export function kebabCase(value: string): string {
+export function kebabCase<S extends string>(value: S): KebabCase<S> {
   const words = splitWords(value)
-  return words.map((word) => word.toLowerCase()).join('-')
+  return words.map((word) => word.toLowerCase()).join('-') as KebabCase<S>
 }
 
 /**
  * Convert to CONSTANT_CASE
  * Example: "helloWorld" -> "HELLO_WORLD"
  */
-export function constantCase(value: string): string {
+export function constantCase<S extends string>(value: S): ConstantCase<S> {
   const words = splitWords(value)
-  return words.map((word) => word.toUpperCase()).join('_')
+  return words.map((word) => word.toUpperCase()).join('_') as ConstantCase<S>
 }
 
 /**

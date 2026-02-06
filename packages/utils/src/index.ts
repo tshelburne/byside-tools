@@ -35,6 +35,7 @@ export {
   keyBy,
   type Path,
   type PathValue,
+  type MapKeys,
 } from './object.js'
 
 // String utilities
@@ -48,6 +49,11 @@ export {
   constantCase,
   truncate,
   pluralize,
+  type CamelCase,
+  type PascalCase,
+  type SnakeCase,
+  type KebabCase,
+  type ConstantCase,
 } from './string.js'
 
 // Promise utilities

@@ -1,5 +1,10 @@
 import { camelCase, constantCase, kebabCase, pascalCase, snakeCase } from './string.js'
 
+export type { Path, PathValue, MapKeys } from './object.types.js'
+export type { CamelCase, PascalCase, SnakeCase, KebabCase, ConstantCase } from './string.types.js'
+
+import type { Path, PathValue, MapKeys } from './object.types.js'
+
 /**
  * Pick specific keys from an object
  */
@@ -99,58 +104,10 @@ export function deepMerge<T extends object, U extends object>(target: T, source:
   return result
 }
 
-// --- Path Types ---
-
-type PathImpl<T, K extends keyof T> = K extends string
-  ? T[K] extends Record<string, unknown>
-    ? K | `${K}.${PathImpl<T[K], keyof T[K] & string>}`
-    : K
-  : never
-
-/**
- * Recursively extracts all valid dot-notation paths for an object type.
- * Supports nested objects and arrays.
- *
- * @example
- * type User = { name: string; address: { city: string } }
- * type UserPaths = Path<User> // 'name' | 'address' | 'address.city'
- */
-export type Path<T> =
-  T extends Array<infer U>
-    ? `${number}` | `${number}.${Path<U>}`
-    : T extends Record<string, unknown>
-      ? PathImpl<T, keyof T & string>
-      : never
-
-/**
- * Extracts the type at a given path within an object type.
- * Supports nested objects and array indices.
- *
- * @example
- * type User = { name: string; tags: string[] }
- * type Name = PathValue<User, 'name'> // string
- * type Tag = PathValue<string[], '0'> // string
- */
-export type PathValue<T, P extends string> = P extends `${infer K}.${infer Rest}`
-  ? K extends keyof T
-    ? PathValue<T[K], Rest>
-    : K extends `${number}`
-      ? T extends Array<infer U>
-        ? PathValue<U, Rest>
-        : never
-      : never
-  : P extends keyof T
-    ? T[P]
-    : P extends `${number}`
-      ? T extends Array<infer U>
-        ? U
-        : never
-      : never
-
 /**
  * Get a nested value from an object by dot-separated path
  */
-export function pluck<T extends object, P extends string>(obj: T, path: P): PathValue<T, P> {
+export function pluck<T extends object, P extends Path<T>>(obj: T, path: P): PathValue<T, P> {
   const keys = path.split('.')
   let current: unknown = obj
 
@@ -238,7 +195,7 @@ interface MapKeysOptions {
 }
 
 /**
- * Transform all keys in an object using a mapping function
+ * Transform all keys in an object using a mapping function.
  *
  * @example
  * mapKeys({ first_name: 'John' }, k => k.toUpperCase())
@@ -252,7 +209,7 @@ export function mapKeys<T extends object>(
   obj: T,
   fn: (key: string) => string,
   opts?: MapKeysOptions,
-): Record<string, unknown> {
+): Record<string, T[keyof T]> {
   const result: Record<string, unknown> = {}
 
   for (const key of Object.keys(obj)) {
@@ -268,7 +225,7 @@ export function mapKeys<T extends object>(
     }
   }
 
-  return result
+  return result as Record<string, T[keyof T]>
 }
 
 /**
@@ -281,8 +238,8 @@ export function mapKeys<T extends object>(
 export function camelCaseKeys<T extends object>(
   obj: T,
   opts?: MapKeysOptions,
-): Record<string, unknown> {
-  return mapKeys(obj, camelCase, opts)
+): MapKeys<T, typeof camelCase> {
+  return mapKeys(obj, camelCase, opts) as MapKeys<T, typeof camelCase>
 }
 
 /**
@@ -295,8 +252,8 @@ export function camelCaseKeys<T extends object>(
 export function pascalCaseKeys<T extends object>(
   obj: T,
   opts?: MapKeysOptions,
-): Record<string, unknown> {
-  return mapKeys(obj, pascalCase, opts)
+): MapKeys<T, typeof pascalCase> {
+  return mapKeys(obj, pascalCase, opts) as MapKeys<T, typeof pascalCase>
 }
 
 /**
@@ -309,8 +266,8 @@ export function pascalCaseKeys<T extends object>(
 export function snakeCaseKeys<T extends object>(
   obj: T,
   opts?: MapKeysOptions,
-): Record<string, unknown> {
-  return mapKeys(obj, snakeCase, opts)
+): MapKeys<T, typeof snakeCase> {
+  return mapKeys(obj, snakeCase, opts) as MapKeys<T, typeof snakeCase>
 }
 
 /**
@@ -323,8 +280,8 @@ export function snakeCaseKeys<T extends object>(
 export function kebabCaseKeys<T extends object>(
   obj: T,
   opts?: MapKeysOptions,
-): Record<string, unknown> {
-  return mapKeys(obj, kebabCase, opts)
+): MapKeys<T, typeof kebabCase> {
+  return mapKeys(obj, kebabCase, opts) as MapKeys<T, typeof kebabCase>
 }
 
 /**
@@ -337,6 +294,6 @@ export function kebabCaseKeys<T extends object>(
 export function constantCaseKeys<T extends object>(
   obj: T,
   opts?: MapKeysOptions,
-): Record<string, unknown> {
-  return mapKeys(obj, constantCase, opts)
+): MapKeys<T, typeof constantCase> {
+  return mapKeys(obj, constantCase, opts) as MapKeys<T, typeof constantCase>
 }
