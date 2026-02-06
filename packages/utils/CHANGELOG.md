@@ -1,5 +1,11 @@
 # @byside/utils
 
+## 0.4.1
+
+### Patch Changes
+
+- 05bbb33: improved util types
+
 ## 0.4.0
 
 ### Minor Changes
