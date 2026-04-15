@@ -60,6 +60,52 @@ describe('zodToGql', () => {
       const result = zodToGql('Config', schema)
       assert.strictEqual(result, `type Config {\n  status: String!\n}`)
     })
+
+    it('peels nested wrapper chains so registered references resolve', () => {
+      // Regression: `MySchema.nullable().optional()` is a chain
+      // ZodOptional → ZodNullable → ZodObject. The single-step unwrap
+      // returned ZodNullable from the field, which never matched the
+      // registered schema in the types map → fell back to JSON/String.
+      const Inner = z.object({ x: z.string() })
+      const Outer = z.object({
+        a: Inner.nullable().optional(),
+        b: Inner.optional().nullable(),
+        c: Inner.nullable(),
+        d: Inner.optional(),
+      })
+      const result = zodToGql({ Inner, Outer })
+      assert.strictEqual(
+        result,
+        `type Inner {
+  x: String!
+}
+
+type Outer {
+  a: Inner
+  b: Inner
+  c: Inner
+  d: Inner
+}`,
+      )
+    })
+
+    it('peels default + optional chains', () => {
+      const Inner = z.object({ y: z.string() })
+      const Outer = z.object({
+        ref: Inner.default({ y: 'hi' }).optional(),
+      })
+      const result = zodToGql({ Inner, Outer })
+      assert.strictEqual(
+        result,
+        `type Inner {
+  y: String!
+}
+
+type Outer {
+  ref: Inner
+}`,
+      )
+    })
   })
 
   describe('enums', () => {
@@ -280,6 +326,88 @@ type Main {
   internal: Internal!
 }`,
       )
+    })
+  })
+
+  describe('discriminated unions', () => {
+    it('synthesises member types from inline discriminated union', () => {
+      // Common pattern: discriminated union members are inline objects
+      // that aren't exported individually. Without this, callers had to
+      // hand-author the SDL because the generator threw.
+      const Event = z.discriminatedUnion('event', [
+        z.object({ event: z.literal('session_start'), stamp: z.string() }),
+        z.object({ event: z.literal('session_end'), stamp: z.string() }),
+        z.object({ event: z.literal('web_navigation'), stamp: z.string(), url: z.string() }),
+      ])
+
+      const result = zodToGql({ Event })
+      assert.strictEqual(
+        result,
+        `type EventSessionStart {
+  event: String!
+  stamp: String!
+}
+
+type EventSessionEnd {
+  event: String!
+  stamp: String!
+}
+
+type EventWebNavigation {
+  event: String!
+  stamp: String!
+  url: String!
+}
+
+union Event = EventSessionStart | EventSessionEnd | EventWebNavigation`,
+      )
+    })
+
+    it('reuses registered names for explicitly-named members', () => {
+      const Start = z.object({ event: z.literal('start'), at: z.string() })
+      const End = z.object({ event: z.literal('end'), at: z.string() })
+      const Event = z.discriminatedUnion('event', [Start, End])
+
+      const result = zodToGql({ Start, End, Event })
+      // No synthesised types — the existing names are reused in the union.
+      assert.strictEqual(
+        result,
+        `type Start {
+  event: String!
+  at: String!
+}
+
+type End {
+  event: String!
+  at: String!
+}
+
+union Event = Start | End`,
+      )
+    })
+
+    it('resolves discriminated union as field type in another schema', () => {
+      const Event = z.discriminatedUnion('event', [
+        z.object({ event: z.literal('a'), x: z.string() }),
+        z.object({ event: z.literal('b'), y: z.number() }),
+      ])
+      const Container = z.object({ items: z.array(Event) })
+
+      const result = zodToGql({ Event, Container })
+      // Field type resolves to the union name, members are synthesised once.
+      assert.match(result, /union Event = EventA \| EventB/)
+      assert.match(result, /items: \[Event!\]!/)
+    })
+
+    it('handles snake_case discriminator literals via PascalCase', () => {
+      const U = z.discriminatedUnion('type', [
+        z.object({ type: z.literal('credit_card'), last4: z.string() }),
+        z.object({ type: z.literal('bank_transfer'), routing: z.string() }),
+      ])
+      const result = zodToGql({ Payment: U })
+      assert.match(result, /type PaymentCreditCard \{/)
+      assert.match(result, /type PaymentBankTransfer \{/)
+      assert.match(result, /union Payment = PaymentCreditCard \| PaymentBankTransfer/)
     })
   })
 

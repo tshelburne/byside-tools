@@ -77,6 +77,10 @@ function zodSchemasToGql(
 
 /**
  * Convert a single Zod schema to GraphQL SDL type definition.
+ *
+ * Returns one or more SDL blocks separated by blank lines. Most schemas
+ * yield a single block, but a discriminated union of inline (unregistered)
+ * objects expands into one block per member plus the `union` declaration.
  */
 function zodSchemaToGql(name: string, schema: ZodSchema, options: ZodToGqlOptions = {}): string {
   const scalars = { ...DEFAULT_SCALARS, ...options.scalars }
@@ -97,16 +101,93 @@ function zodSchemaToGql(name: string, schema: ZodSchema, options: ZodToGqlOption
       lines.push(`  ${options.preserveEnumCase ? value : value.toUpperCase()}`)
     }
     lines.push('}')
+  } else if (schema instanceof z.ZodDiscriminatedUnion) {
+    return discriminatedUnionToGql(name, schema as unknown as ZodDiscriminatedUnionLike, scalars, types, options)
   } else if (schema instanceof z.ZodUnion) {
     const unionMembers = resolveUnionMembers(schema as z.ZodUnion<never>, types)
     lines.push(`union ${name} = ${unionMembers.join(' | ')}`)
   } else {
     throw new Error(
-      `Top-level schema must be ZodObject, ZodEnum, or ZodUnion, got ${schema.constructor.name}`,
+      `Top-level schema must be ZodObject, ZodEnum, ZodUnion, or ZodDiscriminatedUnion, got ${schema.constructor.name}`,
     )
   }
 
   return lines.join('\n')
+}
+
+/**
+ * Render a `z.discriminatedUnion(...)` as a GraphQL `union` plus member
+ * `type`s. If a member is already registered in the types map (e.g., the
+ * caller exported the variant individually), we reuse that name; otherwise
+ * we synthesise a name from the discriminator literal — `Event` with a
+ * member discriminated by `event: 'session_start'` becomes `EventSessionStart`.
+ *
+ * This lets callers register a single union schema (without enumerating
+ * every variant) and still get a well-formed schema, which matches how
+ * `z.discriminatedUnion` is most often used in practice.
+ */
+/**
+ * Cross-version structural shape for `z.discriminatedUnion`. We can't use
+ * `z.ZodDiscriminatedUnion` directly because its generic parameter
+ * tightened between Zod 3 and Zod 4; coercing to this minimal shape lets
+ * us read the two pieces we need (`discriminator` and member options)
+ * without colliding with either version's stricter signature.
+ */
+interface ZodDiscriminatedUnionLike {
+  _def: { discriminator: string }
+  options: readonly z.ZodObject[]
+}
+
+function discriminatedUnionToGql(
+  name: string,
+  schema: ZodDiscriminatedUnionLike,
+  scalars: Record<string, string>,
+  types: Map<ZodSchema, string> | undefined,
+  options: ZodToGqlOptions,
+): string {
+  const discriminator = schema._def.discriminator
+  const memberSchemas = schema.options
+  const blocks: string[] = []
+  const memberNames: string[] = []
+
+  // Mutable types map so synthesised members are visible to each other if
+  // they reference shared sub-schemas registered upstream.
+  const localTypes = new Map<ZodSchema, string>(types)
+
+  for (const member of memberSchemas) {
+    let memberName = localTypes.get(member)
+    if (!memberName) {
+      const literal = discriminatorLiteral(member, discriminator)
+      memberName = `${name}${pascalCase(literal)}`
+      localTypes.set(member, memberName)
+
+      // Synthesise the SDL block for this inline member.
+      blocks.push(zodSchemaToGql(memberName, member, { ...options, types: localTypes }))
+    }
+    memberNames.push(memberName)
+  }
+
+  blocks.push(`union ${name} = ${memberNames.join(' | ')}`)
+  return blocks.join('\n\n')
+}
+
+function discriminatorLiteral(member: z.ZodObject, discriminator: string): string {
+  const shape = member.shape as Record<string, ZodSchema>
+  const field = shape[discriminator]
+  if (field instanceof z.ZodLiteral && typeof field.value === 'string') {
+    return field.value
+  }
+  // Fallback: stringify whatever we found so the user gets a debuggable name
+  // instead of a silent collision.
+  return field instanceof z.ZodLiteral ? String(field.value) : 'Variant'
+}
+
+function pascalCase(value: string): string {
+  return value
+    .split(/[^a-zA-Z0-9]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join('')
 }
 
 function zodTypeToGql(
@@ -122,14 +203,33 @@ function zodTypeToGql(
   return isOptional ? baseType : `${baseType}!`
 }
 
+/**
+ * Strip `optional`, `nullable`, and `default` wrappers from a schema. Field
+ * declarations like `MySchema.nullable().optional()` produce a chain of
+ * wrappers (ZodOptional → ZodNullable → MySchema); we need to peel them
+ * all off so the types-map lookup in `resolveBaseType` sees the same
+ * schema reference the caller registered. Stops at the first non-wrapper.
+ */
 function unwrapSchema(schema: ZodSchema): { schema: ZodSchema; isOptional: boolean } {
-  if (schema instanceof z.ZodOptional || schema instanceof z.ZodNullable) {
-    return { schema: schema.unwrap(), isOptional: true }
+  let current = schema
+  let isOptional = false
+
+  while (true) {
+    if (current instanceof z.ZodOptional || current instanceof z.ZodNullable) {
+      isOptional = true
+      current = current.unwrap()
+      continue
+    }
+    if (current instanceof z.ZodDefault) {
+      // `default` makes the field non-optional (a value is always present),
+      // so we don't flip isOptional, but we do unwrap to inspect the inner.
+      current = current.removeDefault()
+      continue
+    }
+    break
   }
-  if (schema instanceof z.ZodDefault) {
-    return { schema: schema.removeDefault(), isOptional: false }
-  }
-  return { schema, isOptional: false }
+
+  return { schema: current, isOptional }
 }
 
 type ZodCheck = { kind?: string; format?: string; isInt?: boolean }
