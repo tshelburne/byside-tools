@@ -1,5 +1,11 @@
 # @byside/zod-to-gql
 
+## 0.4.1
+
+### Patch Changes
+
+- Map `z.date()` fields to a GraphQL scalar instead of silently falling through to `String`. `resolveBaseType` now handles `ZodDate` via the `date` scalar option (default `Date`), so `zodToGql(schema, { scalars: { date: 'Datetime' } })` yields `Datetime`.
+
 ## 0.4.0
 
 ### Minor Changes

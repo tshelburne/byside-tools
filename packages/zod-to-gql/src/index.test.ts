@@ -40,6 +40,21 @@ describe('zodToGql', () => {
       const result = zodToGql('Flags', schema)
       assert.strictEqual(result, `type Flags {\n  isActive: Boolean!\n}`)
     })
+
+    it('converts a Date to the default Date scalar', () => {
+      const schema = z.object({ createdAt: z.date() })
+      const result = zodToGql('Timestamps', schema)
+      assert.strictEqual(result, `type Timestamps {\n  createdAt: Date!\n}`)
+    })
+
+    it('maps a Date through the scalars option (e.g. Datetime)', () => {
+      const schema = z.object({ createdAt: z.date(), deletedAt: z.date().nullable() })
+      const result = zodToGql('Timestamps', schema, { scalars: { date: 'Datetime' } })
+      assert.strictEqual(
+        result,
+        `type Timestamps {\n  createdAt: Datetime!\n  deletedAt: Datetime\n}`,
+      )
+    })
   })
 
   describe('wrappers', () => {

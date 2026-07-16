@@ -102,7 +102,13 @@ function zodSchemaToGql(name: string, schema: ZodSchema, options: ZodToGqlOption
     }
     lines.push('}')
   } else if (schema instanceof z.ZodDiscriminatedUnion) {
-    return discriminatedUnionToGql(name, schema as unknown as ZodDiscriminatedUnionLike, scalars, types, options)
+    return discriminatedUnionToGql(
+      name,
+      schema as unknown as ZodDiscriminatedUnionLike,
+      scalars,
+      types,
+      options,
+    )
   } else if (schema instanceof z.ZodUnion) {
     const unionMembers = resolveUnionMembers(schema as z.ZodUnion<never>, types)
     lines.push(`union ${name} = ${unionMembers.join(' | ')}`)
@@ -266,6 +272,10 @@ function resolveBaseType(
 
   if (schema instanceof z.ZodBoolean) {
     return 'Boolean'
+  }
+
+  if (schema instanceof z.ZodDate) {
+    return scalars.date ?? 'String'
   }
 
   if (schema instanceof z.ZodEnum) {
