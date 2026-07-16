@@ -36,6 +36,8 @@ export {
   type Path,
   type PathValue,
   type MapKeys,
+  type DeepMapKeys,
+  type MapKeysReturn,
 } from './object.js'
 
 // String utilities

@@ -3,13 +3,7 @@
  * Tests run at compile time - if this file compiles, the types are correct.
  */
 
-import type {
-  CamelCase,
-  PascalCase,
-  SnakeCase,
-  KebabCase,
-  ConstantCase,
-} from './string.types.js'
+import type { CamelCase, PascalCase, SnakeCase, KebabCase, ConstantCase } from './string.types.js'
 import type { Equals, Expect, Extends } from './test.js'
 import type { camelCase, pascalCase, snakeCase, kebabCase, constantCase } from './string.js'
 
@@ -91,6 +85,32 @@ export type MapKeys<T, F> = {
   [K in keyof T as K extends string ? ApplyKeyMapper<F, K> : K]: T[K]
 }
 
+/**
+ * Like {@link MapKeys}, but recurses through nested objects and arrays — the
+ * type-level mirror of `mapKeys(obj, fn, { recursive: true })`. Dates and other
+ * non-plain leaves pass through untouched, matching the runtime's `isPlainObject`
+ * check.
+ *
+ * @example
+ * type Result = DeepMapKeys<{ user_info: { first_name: string } }, typeof camelCase>
+ * // { userInfo: { firstName: string } }
+ */
+export type DeepMapKeys<T, F> = T extends Date
+  ? T
+  : T extends ReadonlyArray<infer U>
+    ? Array<DeepMapKeys<U, F>>
+    : T extends object
+      ? { [K in keyof T as K extends string ? ApplyKeyMapper<F, K> : K]: DeepMapKeys<T[K], F> }
+      : T
+
+/**
+ * The return type of a `*CaseKeys` call: {@link DeepMapKeys} when
+ * `{ recursive: true }` is passed, {@link MapKeys} otherwise. Keyed on the
+ * options type so the compile-time shape tracks the runtime `recursive` option.
+ */
+export type MapKeysReturn<T, F, Opts> = Opts extends { recursive: true }
+  ? DeepMapKeys<T, F>
+  : MapKeys<T, F>
 
 // --- Test Fixtures ---
 
@@ -213,4 +233,49 @@ type _MapKeysKebab = Expect<
 // MapKeys with constant transform
 type _MapKeysConstant = Expect<
   Equals<MapKeys<CamelInput, typeof constantCase>, { FIRST_NAME: string; LAST_NAME: string }>
+>
+
+// --- DeepMapKeys (recursive) Type Tests ---
+
+type NestedApi = {
+  user_info: { first_name: string; last_name: string }
+  meta_data: {
+    created_at: string
+    tags: { tag_name: string }[]
+  }
+}
+
+type NestedCamel = {
+  userInfo: { firstName: string; lastName: string }
+  metaData: {
+    createdAt: string
+    tags: { tagName: string }[]
+  }
+}
+
+// DeepMapKeys renames keys through nested objects and arrays of objects
+type _DeepCamel = Expect<Equals<DeepMapKeys<NestedApi, typeof camelCase>, NestedCamel>>
+
+// ...and round-trips back with a snake transform
+type _DeepSnake = Expect<Equals<DeepMapKeys<NestedCamel, typeof snakeCase>, NestedApi>>
+
+// Dates and primitive leaves pass through untouched, not recursed into as objects
+type WithLeaves = { created_at: Date; hit_count: number; sub: { is_ok: boolean } }
+type _DeepLeaves = Expect<
+  Equals<
+    DeepMapKeys<WithLeaves, typeof camelCase>,
+    { createdAt: Date; hitCount: number; sub: { isOk: boolean } }
+  >
+>
+
+// The function return type is deep only when { recursive: true } is passed,
+// and stays shallow otherwise — matching the runtime `recursive` option.
+type _ReturnRecursive = Expect<
+  Equals<MapKeysReturn<NestedApi, typeof camelCase, { recursive: true }>, NestedCamel>
+>
+type _ReturnShallow = Expect<
+  Equals<
+    MapKeysReturn<NestedApi, typeof camelCase, undefined>,
+    MapKeys<NestedApi, typeof camelCase>
+  >
 >

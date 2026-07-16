@@ -1,9 +1,9 @@
 import { camelCase, constantCase, kebabCase, pascalCase, snakeCase } from './string.js'
 
-export type { Path, PathValue, MapKeys } from './object.types.js'
+export type { Path, PathValue, MapKeys, DeepMapKeys, MapKeysReturn } from './object.types.js'
 export type { CamelCase, PascalCase, SnakeCase, KebabCase, ConstantCase } from './string.types.js'
 
-import type { Path, PathValue, MapKeys } from './object.types.js'
+import type { Path, PathValue, MapKeysReturn } from './object.types.js'
 
 /**
  * Pick specific keys from an object
@@ -235,11 +235,11 @@ export function mapKeys<T extends object>(
  * camelCaseKeys({ first_name: 'John', last_name: 'Doe' })
  * // { firstName: 'John', lastName: 'Doe' }
  */
-export function camelCaseKeys<T extends object>(
+export function camelCaseKeys<T extends object, O extends MapKeysOptions | undefined = undefined>(
   obj: T,
-  opts?: MapKeysOptions,
-): MapKeys<T, typeof camelCase> {
-  return mapKeys(obj, camelCase, opts) as MapKeys<T, typeof camelCase>
+  opts?: O,
+): MapKeysReturn<T, typeof camelCase, O> {
+  return mapKeys(obj, camelCase, opts) as MapKeysReturn<T, typeof camelCase, O>
 }
 
 /**
@@ -249,11 +249,11 @@ export function camelCaseKeys<T extends object>(
  * pascalCaseKeys({ first_name: 'John' })
  * // { FirstName: 'John' }
  */
-export function pascalCaseKeys<T extends object>(
+export function pascalCaseKeys<T extends object, O extends MapKeysOptions | undefined = undefined>(
   obj: T,
-  opts?: MapKeysOptions,
-): MapKeys<T, typeof pascalCase> {
-  return mapKeys(obj, pascalCase, opts) as MapKeys<T, typeof pascalCase>
+  opts?: O,
+): MapKeysReturn<T, typeof pascalCase, O> {
+  return mapKeys(obj, pascalCase, opts) as MapKeysReturn<T, typeof pascalCase, O>
 }
 
 /**
@@ -263,11 +263,11 @@ export function pascalCaseKeys<T extends object>(
  * snakeCaseKeys({ firstName: 'John', lastName: 'Doe' })
  * // { first_name: 'John', last_name: 'Doe' }
  */
-export function snakeCaseKeys<T extends object>(
+export function snakeCaseKeys<T extends object, O extends MapKeysOptions | undefined = undefined>(
   obj: T,
-  opts?: MapKeysOptions,
-): MapKeys<T, typeof snakeCase> {
-  return mapKeys(obj, snakeCase, opts) as MapKeys<T, typeof snakeCase>
+  opts?: O,
+): MapKeysReturn<T, typeof snakeCase, O> {
+  return mapKeys(obj, snakeCase, opts) as MapKeysReturn<T, typeof snakeCase, O>
 }
 
 /**
@@ -277,11 +277,11 @@ export function snakeCaseKeys<T extends object>(
  * kebabCaseKeys({ firstName: 'John' })
  * // { 'first-name': 'John' }
  */
-export function kebabCaseKeys<T extends object>(
+export function kebabCaseKeys<T extends object, O extends MapKeysOptions | undefined = undefined>(
   obj: T,
-  opts?: MapKeysOptions,
-): MapKeys<T, typeof kebabCase> {
-  return mapKeys(obj, kebabCase, opts) as MapKeys<T, typeof kebabCase>
+  opts?: O,
+): MapKeysReturn<T, typeof kebabCase, O> {
+  return mapKeys(obj, kebabCase, opts) as MapKeysReturn<T, typeof kebabCase, O>
 }
 
 /**
@@ -291,9 +291,9 @@ export function kebabCaseKeys<T extends object>(
  * constantCaseKeys({ firstName: 'John' })
  * // { FIRST_NAME: 'John' }
  */
-export function constantCaseKeys<T extends object>(
-  obj: T,
-  opts?: MapKeysOptions,
-): MapKeys<T, typeof constantCase> {
-  return mapKeys(obj, constantCase, opts) as MapKeys<T, typeof constantCase>
+export function constantCaseKeys<
+  T extends object,
+  O extends MapKeysOptions | undefined = undefined,
+>(obj: T, opts?: O): MapKeysReturn<T, typeof constantCase, O> {
+  return mapKeys(obj, constantCase, opts) as MapKeysReturn<T, typeof constantCase, O>
 }
