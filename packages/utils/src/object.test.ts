@@ -311,10 +311,12 @@ describe('camelCaseKeys', () => {
   })
 
   it('handles recursive option', () => {
-    const obj = { user_data: { first_name: 'John' } }
-    assert.deepStrictEqual(camelCaseKeys(obj, { recursive: true }), {
-      userData: { firstName: 'John' },
-    })
+    const obj = { user_data: { first_name: 'John', tags: [{ tag_name: 'a' }] } }
+    const result = camelCaseKeys(obj, { recursive: true })
+    // The return type is deep too — nested keys are camelCased in the type, not
+    // just at runtime. A shallow return type would fail this `satisfies`.
+    result satisfies { userData: { firstName: string; tags: { tagName: string }[] } }
+    assert.deepStrictEqual(result, { userData: { firstName: 'John', tags: [{ tagName: 'a' }] } })
   })
 })
 
