@@ -325,6 +325,75 @@ function unwrapSchema(schema: ZodSchema): { schema: ZodSchema; isOptional: boole
 
 type ZodCheck = { kind?: string; format?: string; isInt?: boolean }
 
+/**
+ * Whether this is a string, however it was constructed.
+ *
+ * `instanceof z.ZodString` is not enough in Zod 4: `z.uuid()` returns a
+ * `ZodUUID`, which extends `ZodStringFormat` and NOT `ZodString`, so the branch
+ * never ran for it. Checking the def's own type catches every format class
+ * without naming them, and Zod 3 keeps working because its string schemas are
+ * `ZodString` instances anyway.
+ */
+/**
+ * Whether this is a number, however it was constructed. `z.int()` returns a
+ * `ZodNumberFormat` rather than a `ZodNumber`, the same way `z.uuid()` does for
+ * strings — so the same check is needed, for the same reason.
+ */
+function isNumberSchema(schema: ZodSchema): schema is z.ZodNumber {
+  if (schema instanceof z.ZodNumber) return true
+  return (schema as { _def?: { type?: string } })._def?.type === 'number'
+}
+
+/**
+ * Whether a number is an integer, whichever way it was said.
+ *
+ *   z.number().int()  →  a check
+ *   z.int()           →  the schema's own format
+ *
+ * The distinction is not cosmetic: GraphQL's `Int` is 32-bit and `Float` is
+ * not, so getting it wrong changes what a client accepts.
+ */
+function isInteger(schema: ZodSchema): boolean {
+  const def = (schema as { _def?: { format?: string; checks?: ZodCheck[] } })._def ?? {}
+  if (def.format === 'safeint' || def.format === 'int32' || def.format === 'int') return true
+  return (def.checks ?? []).some(
+    (check) => check.kind === 'int' || check.isInt === true || check.format === 'safeint',
+  )
+}
+
+function isStringSchema(schema: ZodSchema): schema is z.ZodString {
+  if (schema instanceof z.ZodString) return true
+  return (schema as { _def?: { type?: string } })._def?.type === 'string'
+}
+
+/**
+ * The format of a string schema, whichever way it was spelled.
+ *
+ * Zod 4 has two, and they store it in different places:
+ *
+ *   z.string().uuid()  →  a check, `checks[].format`
+ *   z.uuid()           →  the schema's own `_def.format`
+ *
+ * Reading only the checks means the top-level spelling falls through to
+ * `String` — silently, because `String` is a legal GraphQL type and the SDL
+ * still builds. The only symptom is a generated client type looser than the
+ * schema, and `z.string().uuid()` is the deprecated half of the pair, so the
+ * spelling that worked is the one people are leaving.
+ *
+ * Returning the NAME rather than mapping here is what lets a caller add a
+ * scalar for any format — `email`, `url`, whatever their server publishes —
+ * without this function growing a branch per format.
+ */
+function stringFormat(schema: z.ZodString): string | undefined {
+  const def = schema._def as { format?: string; checks?: ZodCheck[] }
+  if (def.format) return def.format
+  for (const check of def.checks ?? []) {
+    const format = check.format ?? check.kind
+    if (format) return format
+  }
+  return undefined
+}
+
 function resolveBaseType(
   schema: ZodSchema,
   scalars: Record<string, string>,
@@ -335,25 +404,13 @@ function resolveBaseType(
     return registered
   }
 
-  if (schema instanceof z.ZodString) {
-    const def = schema._def as { checks?: ZodCheck[] }
-    const checks = def.checks ?? []
-    if (checks.some((c) => c.kind === 'uuid' || c.format === 'uuid')) {
-      return scalars.uuid ?? 'String'
-    }
-    if (checks.some((c) => c.kind === 'datetime' || c.format === 'datetime')) {
-      return scalars.datetime ?? 'String'
-    }
-    return 'String'
+  if (isStringSchema(schema)) {
+    const format = stringFormat(schema)
+    return (format && scalars[format]) || 'String'
   }
 
-  if (schema instanceof z.ZodNumber) {
-    const def = schema._def as { checks?: ZodCheck[] }
-    const checks = def.checks ?? []
-    if (checks.some((c) => c.kind === 'int' || c.isInt === true)) {
-      return 'Int'
-    }
-    return 'Float'
+  if (isNumberSchema(schema)) {
+    return isInteger(schema) ? 'Int' : 'Float'
   }
 
   if (schema instanceof z.ZodBoolean) {

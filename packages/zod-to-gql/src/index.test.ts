@@ -662,4 +662,72 @@ type Owner {
       )
     })
   })
+
+  describe('zod 4 top-level formats', () => {
+    /**
+     * Every format has two spellings, and they store the format in different
+     * places — a check for `z.string().uuid()`, the def's own `format` for
+     * `z.uuid()`. Only the first was read, and `z.string().uuid()` is the
+     * deprecated half of the pair, so the spelling that worked was the one
+     * people are migrating away from.
+     *
+     * Both spellings for each, because the failure is that one of them looks
+     * fine on its own.
+     */
+    const cases: Array<[string, z.ZodTypeAny, z.ZodTypeAny, string]> = [
+      ['uuid', z.uuid(), z.string().uuid(), 'UUID'],
+      ['datetime', z.iso.datetime(), z.string().datetime(), 'Datetime'],
+      ['int', z.int(), z.number().int(), 'Int'],
+    ]
+
+    for (const [name, topLevel, chained, expected] of cases) {
+      it(`${name}: both spellings resolve to ${expected}`, () => {
+        assert.strictEqual(
+          zodToGql('A', z.object({ f: topLevel })),
+          `type A {\n  f: ${expected}!\n}`,
+          `top-level spelling of ${name}`,
+        )
+        assert.strictEqual(
+          zodToGql('A', z.object({ f: chained })),
+          `type A {\n  f: ${expected}!\n}`,
+          `chained spelling of ${name}`,
+        )
+      })
+    }
+
+    it('resolves z.iso.date(), which never had a chained equivalent here', () => {
+      assert.strictEqual(
+        zodToGql('A', z.object({ f: z.iso.date() })),
+        `type A {\n  f: Date!\n}`,
+      )
+    })
+
+    it('lets a caller name a scalar for any format', () => {
+      // The format name is looked up rather than branched on, so a server that
+      // publishes an Email scalar gets it without this package knowing.
+      assert.strictEqual(
+        zodToGql('A', z.object({ f: z.email() }), { scalars: { email: 'Email' } }),
+        `type A {\n  f: Email!\n}`,
+      )
+    })
+
+    it('falls back to String for a format with no declared scalar', () => {
+      assert.strictEqual(zodToGql('A', z.object({ f: z.email() })), `type A {\n  f: String!\n}`)
+    })
+
+    it('finds a format behind other checks', () => {
+      // The format is not necessarily the first check.
+      assert.strictEqual(
+        zodToGql('A', z.object({ f: z.string().min(1).uuid() })),
+        `type A {\n  f: UUID!\n}`,
+      )
+    })
+
+    it('leaves a plain string and a plain number alone', () => {
+      assert.strictEqual(
+        zodToGql('A', z.object({ s: z.string().min(1), n: z.number().positive() })),
+        `type A {\n  s: String!\n  n: Float!\n}`,
+      )
+    })
+  })
 })
