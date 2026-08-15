@@ -1,6 +1,6 @@
 {
   "name": "@byside/zod-to-gql",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "type": "module",
   "description": "Convert Zod schemas to GraphQL SDL type definitions",
   "license": "MIT",
