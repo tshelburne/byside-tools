@@ -196,7 +196,7 @@ function discriminatedUnionToGql(
   const localTypes = new Map<ZodSchema, string>(types)
 
   for (const member of memberSchemas) {
-    let memberName = localTypes.get(member)
+    let memberName = lookupType(localTypes, member)
     if (!memberName) {
       const literal = discriminatorLiteral(member, discriminator)
       memberName = `${name}${pascalCase(literal)}`
@@ -330,8 +330,9 @@ function resolveBaseType(
   scalars: Record<string, string>,
   types?: Map<ZodSchema, string>,
 ): string {
-  if (types?.has(schema)) {
-    return types.get(schema)!
+  const registered = lookupType(types, schema)
+  if (registered) {
+    return registered
   }
 
   if (schema instanceof z.ZodString) {
@@ -386,8 +387,9 @@ function resolveBaseType(
   if (schema instanceof z.ZodUnion) {
     const options = schema.options as ZodSchema[]
 
-    if (types?.has(schema)) {
-      return types.get(schema)!
+    const registeredName = lookupType(types, schema)
+    if (registeredName) {
+      return registeredName
     }
 
     const allStringish = options.every((opt) => {
@@ -442,6 +444,39 @@ function resolveBaseType(
   return 'String'
 }
 
+/**
+ * Find a registered name for a schema.
+ *
+ * Identity is not enough. `.describe()` returns a CLONE — a different object
+ * that shares its `_zod.def` — so a caller who registers `OrderRef` and then
+ * writes `OrderRef.describe('the order')` at a field gets no match, and the
+ * field silently degrades to `JSON`. That spelling is idiomatic (it is how a
+ * reference carries its help text), so identity alone makes the types map miss
+ * exactly where it is most used.
+ *
+ * Matching on the shared `def` catches the clone without making the lookup
+ * structural, which would be both slower and much easier to get subtly wrong.
+ */
+function lookupType(
+  types: Map<ZodSchema, string> | undefined,
+  schema: ZodSchema,
+): string | undefined {
+  if (!types) return undefined
+  const direct = types.get(schema)
+  if (direct) return direct
+
+  const def = defOf(schema)
+  if (!def) return undefined
+  for (const [registered, name] of types) {
+    if (defOf(registered) === def) return name
+  }
+  return undefined
+}
+
+function defOf(schema: ZodSchema): unknown {
+  return (schema as { _zod?: { def?: unknown } })._zod?.def
+}
+
 function resolveUnionMembers(schema: z.ZodUnion<never>, types?: Map<ZodSchema, string>): string[] {
   const options = (schema as { options: readonly ZodSchema[] }).options
   const members: string[] = []
@@ -452,7 +487,7 @@ function resolveUnionMembers(schema: z.ZodUnion<never>, types?: Map<ZodSchema, s
         `Union members must be object types when used as a top-level union declaration.`,
       )
     }
-    const typeName = types?.get(opt)
+    const typeName = lookupType(types, opt)
     if (!typeName) {
       throw new Error(
         `Union member is not registered in the types map. ` +
@@ -493,7 +528,7 @@ function validateFieldSchema(
     return
   }
 
-  if (inner instanceof z.ZodObject && !types.has(inner)) {
+  if (inner instanceof z.ZodObject && !lookupType(types, inner)) {
     throw new Error(
       `Strict mode: Field "${fieldName}" on type "${parentType}" references an unregistered object schema. ` +
         `Add it to the schemas record or disable strict mode.`,
