@@ -511,4 +511,107 @@ type Owner {
       assert.strictEqual(result, `type Main {\n  ref: JSON!\n}`)
     })
   })
+
+  describe('input types (io: "input")', () => {
+    it('emits `input` rather than `type`', () => {
+      const Schema = z.object({ name: z.string(), count: z.number().int() })
+
+      assert.strictEqual(
+        zodToGql('OrderInput', Schema, { io: 'input' }),
+        `input OrderInput {\n  name: String!\n  count: Int!\n}`,
+      )
+    })
+
+    it('leaves output mode untouched', () => {
+      const Schema = z.object({ name: z.string() })
+
+      assert.match(zodToGql('Order', Schema), /^type Order \{/)
+    })
+
+    it('merges a union into one input, since GraphQL has no input unions', () => {
+      // A reference-or-create: two shapes, one field.
+      const Schema = z.union([
+        z.object({ id: z.string().uuid() }),
+        z.object({ card: z.string(), postcode: z.string().nullable() }),
+      ])
+
+      assert.strictEqual(
+        zodToGql('PaymentInput', Schema, { io: 'input' }),
+        `input PaymentInput {\n  id: UUID\n  card: String\n  postcode: String\n}`,
+      )
+    })
+
+    it('requires only the fields every member requires', () => {
+      // `kind` is in both and required in both; `a` and `b` are in one each.
+      const Schema = z.discriminatedUnion('kind', [
+        z.object({ kind: z.literal('one'), a: z.number().int() }),
+        z.object({ kind: z.literal('two'), b: z.number().int() }),
+      ])
+
+      const result = zodToGql('ThingInput', Schema, { io: 'input' })
+
+      // Requiring a non-shared field would make the other branch unsendable.
+      assert.match(result, /\n {2}kind: String!\n/)
+      assert.match(result, /\n {2}a: Int\n/)
+      assert.match(result, /\n {2}b: Int\n/)
+    })
+
+    it('keeps a shared field required only if it is required in every member', () => {
+      const Schema = z.union([
+        z.object({ note: z.string() }),
+        z.object({ note: z.string().optional() }),
+      ])
+
+      // Present in both, optional in one — so optional on the wire.
+      assert.strictEqual(
+        zodToGql('NoteInput', Schema, { io: 'input' }),
+        `input NoteInput {\n  note: String\n}`,
+      )
+    })
+
+    it('renders a discriminant as String so its value survives unchanged', () => {
+      // Enum values are uppercased by default, which would break a discriminant
+      // the schema matches with a literal.
+      const Schema = z.discriminatedUnion('kind', [
+        z.object({ kind: z.literal('weighted_reps'), reps: z.number().int() }),
+        z.object({ kind: z.literal('bodyweight_reps'), reps: z.number().int() }),
+      ])
+
+      const result = zodToGql('MeasurementInput', Schema, { io: 'input' })
+
+      assert.match(result, /kind: String!/)
+      assert.doesNotMatch(result, /WEIGHTED_REPS/)
+    })
+
+    it('merges a discriminated union into ONE input, not a union plus members', () => {
+      // The output-mode rendering is a `union` declaration and a block per
+      // member. Neither is legal for an input, and emitting them is the bug
+      // that reads as correct.
+      const Schema = z.discriminatedUnion('kind', [
+        z.object({ kind: z.literal('a'), x: z.string() }),
+        z.object({ kind: z.literal('b'), y: z.string() }),
+      ])
+
+      const result = zodToGql('ThingInput', Schema, { io: 'input' })
+
+      assert.doesNotMatch(result, /union /)
+      assert.strictEqual(result.match(/input /g)?.length, 1)
+    })
+
+    it('round-trips: what the input accepts, the schema parses', () => {
+      // The claim the merge rests on — the wire shape IS the schema's shape,
+      // so nothing hand-written sits between a client and `parse`.
+      const Schema = z.discriminatedUnion('kind', [
+        z.object({ kind: z.literal('gbp'), pence: z.number().int() }),
+        z.object({ kind: z.literal('usd'), cents: z.number().int() }),
+      ])
+
+      assert.deepStrictEqual(Schema.parse({ kind: 'gbp', pence: 500 }), {
+        kind: 'gbp',
+        pence: 500,
+      })
+      // And the looseness the merge introduces is the schema's to reject.
+      assert.throws(() => Schema.parse({ kind: 'gbp', cents: 500 }))
+    })
+  })
 })

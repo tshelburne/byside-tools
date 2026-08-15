@@ -12,6 +12,26 @@ export type ZodToGqlOptions = {
   strict?: boolean
   /** Preserve original case for enum values instead of uppercasing them */
   preserveEnumCase?: boolean
+  /**
+   * Which half of the schema to emit. Mirrors `z.toJSONSchema(schema, { io })`.
+   *
+   * `'output'` (the default) emits `type`, and renders a union as a GraphQL
+   * `union` with a block per member.
+   *
+   * `'input'` emits `input`, and **merges** a union's members into a single
+   * input with every non-shared field optional — because GraphQL has no input
+   * unions, and an input is the one place the type system cannot express the
+   * choice.
+   *
+   * The merge is deliberately lossy: the wire then admits combinations the
+   * schema rejects. That is safe precisely when the schema is still parsed at
+   * the door, which is the only way an input should ever be consumed — the
+   * caller gets the schema's own error rather than a second opinion. What it
+   * buys is that mapping back is the identity: `{ id }` matches one branch,
+   * `{ card }` fails it and matches another, a discriminant picks its variant,
+   * and nothing hand-written sits in between.
+   */
+  io?: 'output' | 'input'
 }
 
 const DEFAULT_SCALARS: Record<string, string> = {
@@ -87,8 +107,10 @@ function zodSchemaToGql(name: string, schema: ZodSchema, options: ZodToGqlOption
   const types = options.types
   const lines: string[] = []
 
+  const keyword = options.io === 'input' ? 'input' : 'type'
+
   if (schema instanceof z.ZodObject) {
-    lines.push(`type ${name} {`)
+    lines.push(`${keyword} ${name} {`)
     const shape = schema.shape as Record<string, ZodSchema>
     for (const [key, fieldSchema] of Object.entries(shape)) {
       const gqlType = zodTypeToGql(fieldSchema, scalars, types)
@@ -102,6 +124,15 @@ function zodSchemaToGql(name: string, schema: ZodSchema, options: ZodToGqlOption
     }
     lines.push('}')
   } else if (schema instanceof z.ZodDiscriminatedUnion) {
+    if (options.io === 'input') {
+      return mergedInputToGql(
+        name,
+        (schema as unknown as ZodDiscriminatedUnionLike).options,
+        scalars,
+        types,
+        options,
+      )
+    }
     return discriminatedUnionToGql(
       name,
       schema as unknown as ZodDiscriminatedUnionLike,
@@ -110,6 +141,10 @@ function zodSchemaToGql(name: string, schema: ZodSchema, options: ZodToGqlOption
       options,
     )
   } else if (schema instanceof z.ZodUnion) {
+    const members = (schema as z.ZodUnion<never>).options as readonly ZodSchema[]
+    if (options.io === 'input' && members.every((m) => m instanceof z.ZodObject)) {
+      return mergedInputToGql(name, members as readonly z.ZodObject[], scalars, types, options)
+    }
     const unionMembers = resolveUnionMembers(schema as z.ZodUnion<never>, types)
     lines.push(`union ${name} = ${unionMembers.join(' | ')}`)
   } else {
@@ -175,6 +210,56 @@ function discriminatedUnionToGql(
 
   blocks.push(`union ${name} = ${memberNames.join(' | ')}`)
   return blocks.join('\n\n')
+}
+
+/**
+ * Merge a union's members into one `input` block.
+ *
+ * GraphQL has no input unions, so the choice cannot be expressed in the type
+ * system and has to survive somewhere else — the schema, parsed at the door.
+ *
+ * A field is required only when EVERY member has it AND requires it. A
+ * discriminant present in all five variants therefore stays required, while a
+ * field two of them carry does not. Getting that wrong is a bug that reads as
+ * correct: require a non-shared field and the other branches become
+ * unsendable, with nothing to indicate why.
+ *
+ * A discriminant renders as `String` rather than a synthesised enum, because
+ * its values have to match the schema's literals byte-for-byte and this
+ * package uppercases enum values by default. A caller wanting a real enum
+ * registers one and references it.
+ */
+function mergedInputToGql(
+  name: string,
+  members: readonly z.ZodObject[],
+  scalars: Record<string, string>,
+  types: Map<ZodSchema, string> | undefined,
+  options: ZodToGqlOptions,
+): string {
+  const seen = new Map<string, { schema: ZodSchema; count: number; requiredIn: number }>()
+
+  for (const member of members) {
+    for (const [key, field] of Object.entries(member.shape as Record<string, ZodSchema>)) {
+      const { isOptional } = unwrapSchema(field)
+      const entry = seen.get(key) ?? { schema: field, count: 0, requiredIn: 0 }
+      entry.count += 1
+      if (!isOptional) entry.requiredIn += 1
+      seen.set(key, entry)
+    }
+  }
+
+  const lines = [`input ${name} {`]
+  for (const [key, entry] of seen) {
+    const shared = entry.count === members.length && entry.requiredIn === members.length
+    // A literal is a discriminant; its wire value must survive unchanged.
+    const type =
+      entry.schema instanceof z.ZodLiteral ?
+        'String'
+      : zodTypeToGql(entry.schema, scalars, types).replace(/!$/, '')
+    lines.push(`  ${key}: ${type}${shared ? '!' : ''}`)
+  }
+  lines.push('}')
+  return lines.join('\n')
 }
 
 function discriminatorLiteral(member: z.ZodObject, discriminator: string): string {
