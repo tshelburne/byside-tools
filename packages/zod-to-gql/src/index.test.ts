@@ -614,4 +614,52 @@ type Owner {
       assert.throws(() => Schema.parse({ kind: 'gbp', cents: 500 }))
     })
   })
+
+  describe('registered types and `.describe()`', () => {
+    it('matches a described clone of a registered schema', () => {
+      // `.describe()` returns a clone sharing its def, and describing a
+      // reference at its use site is the idiomatic spelling — so identity alone
+      // made the map miss exactly where it is most used.
+      const Ref = z.object({ id: z.string() })
+      const Main = z.object({ ref: Ref.describe('the thing') })
+
+      assert.strictEqual(
+        zodToGql('Main', Main, { types: new Map([[Ref, 'RefType']]) }),
+        `type Main {\n  ref: RefType!\n}`,
+      )
+    })
+
+    it('still matches the plain registered schema', () => {
+      const Ref = z.object({ id: z.string() })
+      const Main = z.object({ ref: Ref })
+
+      assert.strictEqual(
+        zodToGql('Main', Main, { types: new Map([[Ref, 'RefType']]) }),
+        `type Main {\n  ref: RefType!\n}`,
+      )
+    })
+
+    it('matches through a described clone in input mode too', () => {
+      const Ref = z.object({ id: z.string() })
+      const Main = z.object({ ref: Ref.describe('the thing') })
+
+      assert.strictEqual(
+        zodToGql('MainInput', Main, { types: new Map([[Ref, 'RefInput']]), io: 'input' }),
+        `input MainInput {\n  ref: RefInput!\n}`,
+      )
+    })
+
+    it('an unregistered schema still falls back rather than matching by shape', () => {
+      // Two structurally identical schemas are still two schemas; matching on
+      // the shared def must not become structural matching.
+      const Ref = z.object({ id: z.string() })
+      const Other = z.object({ id: z.string() })
+      const Main = z.object({ ref: Other })
+
+      assert.strictEqual(
+        zodToGql('Main', Main, { types: new Map([[Ref, 'RefType']]) }),
+        `type Main {\n  ref: JSON!\n}`,
+      )
+    })
+  })
 })
